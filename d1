@@ -1,7 +1,6 @@
-getgenv().VERSION = "1.1.0"
+getgenv().VERSION = "1.2.0"
 
--- ============================ ORION LIBRARY INITIALIZATION (WORKING LINK) ============================
--- Senin verdiğin güncel ve çalışan yedek link raw formatına dönüştürülerek entegre edildi.
+-- ============================ ORION LIBRARY INITIALIZATION ============================
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/GhostDuckyy/UI-Libraries/main/Orion/source.lua')))()
 
 local Window = OrionLib:MakeWindow({
@@ -75,6 +74,8 @@ local cooldowns = {
 }
 
 local miscConfigs = { antiAfk = false }
+
+-- ÇOKLU SEÇİM İÇİN TABLOLAR (Tablo olarak tutuluyor)
 local runesToRoll = {}
 local oresToMine = {}
 local gemsToExchange = {}
@@ -112,14 +113,20 @@ function gainFire()
 	end
 end
 
+-- ÇOKLU RÜN AÇMA FONKSİYONU
 function rollRune()
 	while automationConfig.rollRune do
-		if #runesToRoll > 0 then
-			for _, rune in ipairs(runesToRoll) do
-				RE_Main:FireServer("RollRune", rune)
+		local hasSelected = false
+		for runeName, isSelected in pairs(runesToRoll) do
+			if isSelected then
+				hasSelected = true
+				RE_Main:FireServer("RollRune", runeName)
+				task.wait(cooldowns.rollRune) -- Her rün basımı arası bekleme
 			end
 		end
-		task.wait(cooldowns.rollRune)
+		if not hasSelected then
+			task.wait(0.5) -- Hiçbir şey seçili değilse sonsuz döngü kilitlenmesin diye ufak bekleme
+		end
 	end
 end
 
@@ -133,7 +140,7 @@ end
 function harvestWheat()
 	while automationConfig.harvestWheat do
 		local wheats = workspace.__GAME_CONTENT.Farm:GetChildren()
-		for _, wheat in ipairs(wheat) do
+		for _, wheat in ipairs(wheats) do
 			local cd = wheat:FindFirstChild("ClickDetector")
 			if cd then pcall(fireclickdetector, cd) end
 		end
@@ -200,6 +207,7 @@ function autoConvertWoodToAsh()
 	end
 end
 
+-- ÇOKLU MADEN KAZMA FONKSİYONU
 function autoMineOres()
 	local oresFolder = workspace.__GAME_CONTENT.Ores
 	while automationConfig.autoMineOres do
@@ -212,21 +220,28 @@ function autoMineOres()
 			task.wait(1)
 			continue
 		end
+		
 		local mined = false
 		for _, ore in ipairs(oresFolder:GetChildren()) do
-			if not table.find(oresToMine, ore.Name) then continue end
+			-- Seçili madenler tablosunda bu madenin aktif olup olmadığını kontrol et
+			if not oresToMine[ore.Name] then continue end
+			
 			local function getOreHealthText()
 				local ui = ore:FindFirstChild("OresTopUI")
 				local bar = ui and ui:FindFirstChild("Bar")
 				local lbl = bar and bar:FindFirstChild("Health")
 				return lbl and lbl.Text
 			end
+			
 			if getOreHealthText() == "Respawning..." then continue end
+			
 			character:PivotTo(ore:GetPivot() * CFrame.new(0, 1, 0))
 			mined = true
+			
 			repeat
 				task.wait(0.05)
 			until getOreHealthText() == "Respawning..." or not automationConfig.autoMineOres or getgenv().AutoOpenBusy
+			
 			if not automationConfig.autoMineOres or getgenv().AutoOpenBusy then break end
 		end
 		if not mined then task.wait(0.5) end
@@ -237,20 +252,28 @@ function autoMineOres()
 	end
 end
 
+-- ÇOKLU GEM TAKAS FONKSİYONU
 function autoExchangeGems()
 	while automationConfig.autoExchangeGems do
-		if #gemsToExchange > 0 then
-			for _, gem in ipairs(gemsToExchange) do
-				if gem == "All" then
-					RE_Main:FireServer("ExchangeAllMinerals")
-					break
-				end
-				if _getCurrencyAmount(gem) and _getCurrencyAmount(gem) > 0 then
-					RE_Main:FireServer("ExchangeMineral", gem)
+		local hasSelected = false
+		
+		if gemsToExchange["All"] then
+			RE_Main:FireServer("ExchangeAllMinerals")
+			hasSelected = true
+		else
+			for gemName, isSelected in pairs(gemsToExchange) do
+				if isSelected and _getCurrencyAmount(gemName) and _getCurrencyAmount(gemName) > 0 then
+					RE_Main:FireServer("ExchangeMineral", gemName)
+					hasSelected = true
 				end
 			end
 		end
-		task.wait(cooldowns.autoExchangeGems)
+		
+		if hasSelected then
+			task.wait(cooldowns.autoExchangeGems)
+		else
+			task.wait(1)
+		end
 	end
 end
 
@@ -317,7 +340,7 @@ end
 
 -- ============================ ORION UI TABS ============================
 local AutoTab = Window:MakeTab({ Name = "Automation", Icon = "rbxassetid://4483345998", PremiumOnly = false })
-local DropdownsTab = Window:MakeTab({ Name = "Selectors", Icon = "rbxassetid://4483345998", PremiumOnly = false })
+local DropdownsTab = Window:MakeTab({ Name = "Selectors (Multi)", Icon = "rbxassetid://4483345998", PremiumOnly = false })
 local CapsuleTab = Window:MakeTab({ Name = "Capsules", Icon = "rbxassetid://4483345998", PremiumOnly = false })
 local MiscTab = Window:MakeTab({ Name = "Misc & Dev Boost", Icon = "rbxassetid://4483345998", PremiumOnly = false })
 
@@ -485,14 +508,19 @@ AutoTab:AddSlider({
 	Callback = function(Value) cooldowns.autoExchangeGems = Value end
 })
 
--- ============================ SELECTORS / DROPDOWNS INTERFACES ============================
+-- ============================ SELECTORS / MULTI-DROPDOWNS INTERFACES ============================
+-- Rünler için Çoklu Seçim
 DropdownsTab:AddDropdown({
-	Name = "Rune Roll Selection",
-	Default = "None",
+	Name = "Rune Roll Selection (Multi-Select)",
+	Default = {},
 	Options = { "Basic", "Super", "Advanced", "Cosmic Prism", "Hacker", "Snowy", "Deepcore" },
-	Callback = function(Value) runesToRoll = {Value} end
+	Multi = true,
+	Callback = function(SelectedList) 
+		runesToRoll = SelectedList 
+	end
 })
 
+-- Buz butonu için tekli seçim kalabilir (Sırayla basmak mantıklı olmayabilir diye)
 DropdownsTab:AddDropdown({
 	Name = "Ice Button Selection",
 	Default = "1",
@@ -500,18 +528,26 @@ DropdownsTab:AddDropdown({
 	Callback = function(Value) automationConfig.IceButtonToConvert = {Value} end
 })
 
+-- Madenler için Çoklu Seçim
 DropdownsTab:AddDropdown({
-	Name = "Ore to Mine Selection",
-	Default = "Stone",
+	Name = "Ore to Mine Selection (Multi-Select)",
+	Default = {},
 	Options = { "Stone", "Coal", "Copper", "Iron", "Silver", "Gold", "Platinum", "Titanium", "Uranium", "Cobalt", "Palladium", "Ruby", "Aetherite", "Celestium", "Voidsteel", "Infinity" },
-	Callback = function(Value) oresToMine = {Value} end
+	Multi = true,
+	Callback = function(SelectedList) 
+		oresToMine = SelectedList 
+	end
 })
 
+-- Gem Takası için Çoklu Seçim
 DropdownsTab:AddDropdown({
-	Name = "Gems Exchange Selection",
-	Default = "All",
+	Name = "Gems Exchange Selection (Multi-Select)",
+	Default = {},
 	Options = { "All", "Coal", "Iron", "Sliver", "Gold", "Platinum", "Titanium", "Emerald", "Diamond", "Opal", "Jade", "Amber", "Topaz", "Ruby", "Amethyst", "Quartz", "Sapphire", "Uranium", "Crystal", "Obsidian" },
-	Callback = function(Value) gemsToExchange = {Value} end
+	Multi = true,
+	Callback = function(SelectedList) 
+		gemsToExchange = SelectedList 
+	end
 })
 
 -- ============================ CAPSULES INTERFACES ============================
