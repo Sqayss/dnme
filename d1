@@ -1,4 +1,4 @@
-getgenv().VERSION = "1.2.0"
+getgenv().VERSION = "1.3.5"
 
 -- ============================ ORION LIBRARY INITIALIZATION ============================
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/GhostDuckyy/UI-Libraries/main/Orion/source.lua')))()
@@ -9,6 +9,55 @@ local Window = OrionLib:MakeWindow({
     SaveConfig = true, 
     ConfigFolder = "SqaysHub_NoobIncremental"
 })
+
+-- ============================ TOGGLE GUI BUTTON (Ekran Butonu) ============================
+if game.CoreGui:FindFirstChild("SqaysHubToggleGui") then
+    game.CoreGui.SqaysHubToggleGui:Destroy()
+end
+
+local ToggleGui = Instance.new("ScreenGui")
+local ToggleButton = Instance.new("TextButton")
+local UICorner = Instance.new("UICorner")
+local UIStroke = Instance.new("UIStroke")
+
+ToggleGui.Name = "SqaysHubToggleGui"
+ToggleGui.Parent = game.CoreGui
+ToggleGui.ResetOnSpawn = false
+
+ToggleButton.Name = "ToggleButton"
+ToggleButton.Parent = ToggleGui
+ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+ToggleButton.Position = UDim2.new(0, 15, 0, 15)
+ToggleButton.Size = UDim2.new(0, 120, 0, 35)
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.Text = "Sqays Hub: GİZLE"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 14
+ToggleButton.Active = true
+ToggleButton.Draggable = true
+
+UICorner.CornerRadius = UDim.new(0, 6)
+UICorner.Parent = ToggleButton
+
+UIStroke.Color = Color3.fromRGB(255, 165, 0)
+UIStroke.Thickness = 1.5
+UIStroke.Parent = ToggleButton
+
+local guiVisible = true
+ToggleButton.MouseButton1Click:Connect(function()
+    guiVisible = not guiVisible
+    local OrionGui = game.CoreGui:FindFirstChild("Orion")
+    if OrionGui then
+        OrionGui.Enabled = guiVisible
+    end
+    if guiVisible then
+        ToggleButton.Text = "Sqays Hub: GİZLE"
+        ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    else
+        ToggleButton.Text = "Sqays Hub: GÖSTER"
+        ToggleButton.TextColor3 = Color3.fromRGB(255, 165, 0)
+    end
+end)
 
 -- ============================ GAME SERVICES & VARIABLES ============================
 local Players = game:GetService("Players")
@@ -75,7 +124,6 @@ local cooldowns = {
 
 local miscConfigs = { antiAfk = false }
 
--- ÇOKLU SEÇİM İÇİN TABLOLAR (Tablo olarak tutuluyor)
 local runesToRoll = {}
 local oresToMine = {}
 local gemsToExchange = {}
@@ -113,7 +161,6 @@ function gainFire()
 	end
 end
 
--- ÇOKLU RÜN AÇMA FONKSİYONU
 function rollRune()
 	while automationConfig.rollRune do
 		local hasSelected = false
@@ -121,11 +168,11 @@ function rollRune()
 			if isSelected then
 				hasSelected = true
 				RE_Main:FireServer("RollRune", runeName)
-				task.wait(cooldowns.rollRune) -- Her rün basımı arası bekleme
+				task.wait(cooldowns.rollRune)
 			end
 		end
 		if not hasSelected then
-			task.wait(0.5) -- Hiçbir şey seçili değilse sonsuz döngü kilitlenmesin diye ufak bekleme
+			task.wait(0.5)
 		end
 	end
 end
@@ -207,52 +254,63 @@ function autoConvertWoodToAsh()
 	end
 end
 
--- ÇOKLU MADEN KAZMA FONKSİYONU
+-- Reworked Mine Ores Function (Daha güvenli ışınlanma)
 function autoMineOres()
-	local oresFolder = workspace.__GAME_CONTENT.Ores
+	local oresFolder = workspace.__GAME_CONTENT:WaitForChild("Ores")
 	while automationConfig.autoMineOres do
 		if getgenv().AutoOpenBusy then
-			task.wait(0.05)
+			task.wait(0.1)
 			continue
 		end
 		local character = getCharacter()
-		if not character then
-			task.wait(1)
+		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+		if not rootPart then
+			task.wait(0.5)
 			continue
 		end
 		
 		local mined = false
-		for _, ore in ipairs(oresFolder:GetChildren()) do
-			-- Seçili madenler tablosunda bu madenin aktif olup olmadığını kontrol et
+		local targetOres = oresFolder:GetChildren()
+		
+		for _, ore in ipairs(targetOres) do
 			if not oresToMine[ore.Name] then continue end
 			
 			local function getOreHealthText()
 				local ui = ore:FindFirstChild("OresTopUI")
 				local bar = ui and ui:FindFirstChild("Bar")
 				local lbl = bar and bar:FindFirstChild("Health")
-				return lbl and lbl.Text
+				return lbl and lbl.Text or ""
 			end
 			
-			if getOreHealthText() == "Respawning..." then continue end
+			-- Eğer ore kırılmışsa veya doğuyorsa es geç
+			if string.find(getOreHealthText(), "Respawn") or getOreHealthText() == "" then 
+				continue 
+			end
 			
-			character:PivotTo(ore:GetPivot() * CFrame.new(0, 1, 0))
+			-- Güvenli Işınlanma: Oretanın 4 birim üstüne ışınlan (Sıkışmayı engeller)
+			rootPart.CFrame = ore:GetPivot() * CFrame.new(0, 4, 0)
 			mined = true
 			
+			-- Ore yok olana veya döngü iptal olana kadar bekle
+			local timeout = 0
 			repeat
 				task.wait(0.05)
-			until getOreHealthText() == "Respawning..." or not automationConfig.autoMineOres or getgenv().AutoOpenBusy
+				timeout = timeout + 0.05
+			until string.find(getOreHealthText(), "Respawn") or not automationConfig.autoMineOres or getgenv().AutoOpenBusy or timeout > 5
 			
 			if not automationConfig.autoMineOres or getgenv().AutoOpenBusy then break end
 		end
-		if not mined then task.wait(0.5) end
+		if not mined then task.wait(0.2) end
 	end
+	
+	-- Mining bittiğinde eski pozisyona güvenli dönüş
 	if automationConfig.TpBackToBeforeMineOres and positionSavedBeforeMine then
 		local character = getCharacter()
-		if character then character:PivotTo(positionSavedBeforeMine) end
+		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+		if rootPart then rootPart.CFrame = positionSavedBeforeMine end
 	end
 end
 
--- ÇOKLU GEM TAKAS FONKSİYONU
 function autoExchangeGems()
 	while automationConfig.autoExchangeGems do
 		local hasSelected = false
@@ -482,7 +540,9 @@ AutoTab:AddToggle({
 		automationConfig.autoMineOres = Value
 		if Value then
 			local character = getCharacter()
-			if character then positionSavedBeforeMine = character:GetPivot() end
+			if character and character:FindFirstChild("HumanoidRootPart") then 
+				positionSavedBeforeMine = character.HumanoidRootPart.CFrame 
+			end
 			task.spawn(autoMineOres)
 		end
 	end
@@ -508,19 +568,21 @@ AutoTab:AddSlider({
 	Callback = function(Value) cooldowns.autoExchangeGems = Value end
 })
 
--- ============================ SELECTORS / MULTI-DROPDOWNS INTERFACES ============================
--- Rünler için Çoklu Seçim
+-- ============================ FIXED SELECTORS (MULTI-DROPDOWNS) ============================
+-- Orion Multi-Select bugunu aşmak için callback verisini güvenli döngüyle temizleyip çekiyoruz.
 DropdownsTab:AddDropdown({
 	Name = "Rune Roll Selection (Multi-Select)",
 	Default = {},
 	Options = { "Basic", "Super", "Advanced", "Cosmic Prism", "Hacker", "Snowy", "Deepcore" },
 	Multi = true,
 	Callback = function(SelectedList) 
-		runesToRoll = SelectedList 
+		table.clear(runesToRoll)
+		for k, v in pairs(SelectedList) do
+			runesToRoll[k] = v
+		end
 	end
 })
 
--- Buz butonu için tekli seçim kalabilir (Sırayla basmak mantıklı olmayabilir diye)
 DropdownsTab:AddDropdown({
 	Name = "Ice Button Selection",
 	Default = "1",
@@ -528,25 +590,29 @@ DropdownsTab:AddDropdown({
 	Callback = function(Value) automationConfig.IceButtonToConvert = {Value} end
 })
 
--- Madenler için Çoklu Seçim
 DropdownsTab:AddDropdown({
 	Name = "Ore to Mine Selection (Multi-Select)",
 	Default = {},
 	Options = { "Stone", "Coal", "Copper", "Iron", "Silver", "Gold", "Platinum", "Titanium", "Uranium", "Cobalt", "Palladium", "Ruby", "Aetherite", "Celestium", "Voidsteel", "Infinity" },
 	Multi = true,
 	Callback = function(SelectedList) 
-		oresToMine = SelectedList 
+		table.clear(oresToMine)
+		for k, v in pairs(SelectedList) do
+			oresToMine[k] = v
+		end
 	end
 })
 
--- Gem Takası için Çoklu Seçim
 DropdownsTab:AddDropdown({
 	Name = "Gems Exchange Selection (Multi-Select)",
 	Default = {},
 	Options = { "All", "Coal", "Iron", "Sliver", "Gold", "Platinum", "Titanium", "Emerald", "Diamond", "Opal", "Jade", "Amber", "Topaz", "Ruby", "Amethyst", "Quartz", "Sapphire", "Uranium", "Crystal", "Obsidian" },
 	Multi = true,
 	Callback = function(SelectedList) 
-		gemsToExchange = SelectedList 
+		table.clear(gemsToExchange)
+		for k, v in pairs(SelectedList) do
+			gemsToExchange[k] = v
+		end
 	end
 })
 
