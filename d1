@@ -1,13 +1,13 @@
-getgenv().VERSION = "1.3.5"
+getgenv().VERSION = "1.4.0"
 
--- ============================ ORION LIBRARY INITIALIZATION ============================
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/GhostDuckyy/UI-Libraries/main/Orion/source.lua')))()
+-- ============================ ATLAS UI LIBRARY INITIALIZATION ============================
+local AtlasLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/GhostDuckyy/UI-Libraries/main/Atlas%20UI%20Library/source.lua"))()
 
-local Window = OrionLib:MakeWindow({
-    Name = "Sqays Hub | Noob Incremental", 
-    HidePremium = false, 
-    SaveConfig = true, 
-    ConfigFolder = "SqaysHub_NoobIncremental"
+local Window = AtlasLib:CreateWindow({
+    Name = "Sqays Hub",
+    Title = "Noob Incremental",
+    Subtitle = "v" .. getgenv().VERSION,
+    Link = "https://discord.gg/8UH3H6ZQNR" -- Discord buton bağlantısı
 })
 
 -- ============================ TOGGLE GUI BUTTON (Ekran Butonu) ============================
@@ -26,7 +26,7 @@ ToggleGui.ResetOnSpawn = false
 
 ToggleButton.Name = "ToggleButton"
 ToggleButton.Parent = ToggleGui
-ToggleButton.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 ToggleButton.Position = UDim2.new(0, 15, 0, 15)
 ToggleButton.Size = UDim2.new(0, 120, 0, 35)
 ToggleButton.Font = Enum.Font.SourceSansBold
@@ -39,24 +39,18 @@ ToggleButton.Draggable = true
 UICorner.CornerRadius = UDim.new(0, 6)
 UICorner.Parent = ToggleButton
 
-UIStroke.Color = Color3.fromRGB(255, 165, 0)
+UIStroke.Color = Color3.fromRGB(0, 120, 255) -- Atlas UI temasına uygun mavi kenarlık
 UIStroke.Thickness = 1.5
 UIStroke.Parent = ToggleButton
 
 local guiVisible = true
 ToggleButton.MouseButton1Click:Connect(function()
     guiVisible = not guiVisible
-    local OrionGui = game.CoreGui:FindFirstChild("Orion")
-    if OrionGui then
-        OrionGui.Enabled = guiVisible
+    local AtlasMain = game.CoreGui:FindFirstChild("Atlas") or game.CoreGui:FindFirstChild("AtlasUI")
+    if AtlasMain then
+        AtlasMain.Enabled = guiVisible
     end
-    if guiVisible then
-        ToggleButton.Text = "Sqays Hub: GİZLE"
-        ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    else
-        ToggleButton.Text = "Sqays Hub: GÖSTER"
-        ToggleButton.TextColor3 = Color3.fromRGB(255, 165, 0)
-    end
+    ToggleButton.Text = guiVisible and "Sqays Hub: GİZLE" or "Sqays Hub: GÖSTER"
 end)
 
 -- ============================ GAME SERVICES & VARIABLES ============================
@@ -87,25 +81,14 @@ local ICE_BUTTON_COSTS = {
 	["10"] = 6.25e21, ["11"] = 1.25e26, ["12"] = 1.875e30,
 }
 
-local CAPSULE_COSTS = {
-	Classic = 1000000000,
-	Super = 7500000000,
-}
-
-local capsuleZones = getgenv().NoobCapsuleZones or {
-	Super = Vector3.new(618.0, 9.7, 3173.5),
-	Classic = nil,
-}
+local CAPSULE_COSTS = { Classic = 1000000000, Super = 7500000000 }
+local capsuleZones = getgenv().NoobCapsuleZones or { Super = Vector3.new(618.0, 9.7, 3173.5), Classic = nil }
 getgenv().NoobCapsuleZones = capsuleZones
 
 -- ============================ CONFIGURATIONS ============================
 local capsuleConfig = {
-	capsuleType = "Super",
-	pauseMining = true,
-	checkPrism = true,
-	cycleCooldown = 3.1,
-	zoneWait = 0.4,
-	returnWait = 0.2,
+	capsuleType = "Super", pauseMining = true, checkPrism = true,
+	cycleCooldown = 3.1, zoneWait = 0.4, returnWait = 0.2,
 }
 
 local automationConfig = {
@@ -122,8 +105,7 @@ local cooldowns = {
 	autoConvertWoodToAsh = 1, autoExchangeGems = 10,
 }
 
-local miscConfigs = { antiAfk = false }
-
+-- ATLAS ÇOKLU SEÇİM SİSTEMİ İÇİN TABLOLAR
 local runesToRoll = {}
 local oresToMine = {}
 local gemsToExchange = {}
@@ -139,19 +121,7 @@ local function _getCurrencyAmount(currency: string): number?
 	return tonumber(v.Value)
 end
 
-local function getCharacter()
-	return localPlayer.Character
-end
-
-local function setCapsuleStatus(text)
-	print("[Sqays Hub - Capsule] " .. text)
-    OrionLib:MakeNotification({
-        Name = "Capsule Status Update",
-        Content = text,
-        Image = "rbxassetid://4483345998",
-        Time = 3
-    })
-end
+local function getCharacter() return localPlayer.Character end
 
 -- ============================ AUTOMATION FUNCTIONS ============================
 function gainFire()
@@ -171,9 +141,7 @@ function rollRune()
 				task.wait(cooldowns.rollRune)
 			end
 		end
-		if not hasSelected then
-			task.wait(0.5)
-		end
+		if not hasSelected then task.wait(0.5) end
 	end
 end
 
@@ -228,13 +196,8 @@ end
 function hitTree()
 	local isTreeSpawned = localPlayer.FEATURES.TREE.IsSpawned
 	while automationConfig.hitTree do
-		if tonumber(currentPrestige.Value) < 9 then
-			warn("[Sqays Hub] Prestige level too low — disabling Tree Farm.")
-			break
-		end
-		if isTreeSpawned.Value then
-			RE_Main:FireServer("HitTree")
-		end
+		if tonumber(currentPrestige.Value) < 9 then break end
+		if isTreeSpawned.Value then RE_Main:FireServer("HitTree") end
 		task.wait(cooldowns.hitTree)
 	end
 end
@@ -254,25 +217,16 @@ function autoConvertWoodToAsh()
 	end
 end
 
--- Reworked Mine Ores Function (Daha güvenli ışınlanma)
 function autoMineOres()
 	local oresFolder = workspace.__GAME_CONTENT:WaitForChild("Ores")
 	while automationConfig.autoMineOres do
-		if getgenv().AutoOpenBusy then
-			task.wait(0.1)
-			continue
-		end
+		if getgenv().AutoOpenBusy then task.wait(0.1) continue end
 		local character = getCharacter()
 		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-		if not rootPart then
-			task.wait(0.5)
-			continue
-		end
+		if not rootPart then task.wait(0.5) continue end
 		
 		local mined = false
-		local targetOres = oresFolder:GetChildren()
-		
-		for _, ore in ipairs(targetOres) do
+		for _, ore in ipairs(oresFolder:GetChildren()) do
 			if not oresToMine[ore.Name] then continue end
 			
 			local function getOreHealthText()
@@ -282,28 +236,20 @@ function autoMineOres()
 				return lbl and lbl.Text or ""
 			end
 			
-			-- Eğer ore kırılmışsa veya doğuyorsa es geç
-			if string.find(getOreHealthText(), "Respawn") or getOreHealthText() == "" then 
-				continue 
-			end
+			if string.find(getOreHealthText(), "Respawn") or getOreHealthText() == "" then continue end
 			
-			-- Güvenli Işınlanma: Oretanın 4 birim üstüne ışınlan (Sıkışmayı engeller)
 			rootPart.CFrame = ore:GetPivot() * CFrame.new(0, 4, 0)
 			mined = true
 			
-			-- Ore yok olana veya döngü iptal olana kadar bekle
 			local timeout = 0
 			repeat
 				task.wait(0.05)
 				timeout = timeout + 0.05
 			until string.find(getOreHealthText(), "Respawn") or not automationConfig.autoMineOres or getgenv().AutoOpenBusy or timeout > 5
-			
 			if not automationConfig.autoMineOres or getgenv().AutoOpenBusy then break end
 		end
 		if not mined then task.wait(0.2) end
 	end
-	
-	-- Mining bittiğinde eski pozisyona güvenli dönüş
 	if automationConfig.TpBackToBeforeMineOres and positionSavedBeforeMine then
 		local character = getCharacter()
 		local rootPart = character and character:FindFirstChild("HumanoidRootPart")
@@ -314,7 +260,6 @@ end
 function autoExchangeGems()
 	while automationConfig.autoExchangeGems do
 		local hasSelected = false
-		
 		if gemsToExchange["All"] then
 			RE_Main:FireServer("ExchangeAllMinerals")
 			hasSelected = true
@@ -326,12 +271,7 @@ function autoExchangeGems()
 				end
 			end
 		end
-		
-		if hasSelected then
-			task.wait(cooldowns.autoExchangeGems)
-		else
-			task.wait(1)
-		end
+		task.wait(hasSelected and cooldowns.autoExchangeGems or 1)
 	end
 end
 
@@ -342,398 +282,209 @@ function autoOpenCapsule()
 		local zone = capsuleZones[cType]
 		local char = getCharacter()
 
-		if not Client then
-			setCapsuleStatus("Brak Framework.Client — Nie można otworzyć.")
-			task.wait(2)
-			continue
+		if not Client or not (char and char:FindFirstChild("HumanoidRootPart")) or not zone then
+			task.wait(1) continue
 		end
-		if not (char and char:FindFirstChild("HumanoidRootPart")) then
-			task.wait(0.5)
-			continue
-		end
-		if not zone then
-			setCapsuleStatus("Strefa nieustawiona! Użyj Capture Zone.")
-			task.wait(2)
-			continue
-		end
-
 		local prism = _getCurrencyAmount("Prism") or 0
-		if capsuleConfig.checkPrism and prism < cost then
-			task.wait(1)
-			continue
-		end
+		if capsuleConfig.checkPrism and prism < cost then task.wait(1) continue end
 
-		if capsuleConfig.pauseMining then
-			getgenv().AutoOpenBusy = true
-			task.wait(0.1)
-		end
+		if capsuleConfig.pauseMining then getgenv().AutoOpenBusy = true task.wait(0.1) end
 
 		local minePos = char:GetPivot()
 		char:PivotTo(CFrame.new(zone))
 		task.wait(capsuleConfig.zoneWait)
 
-		local before = _getCurrencyAmount("Prism") or 0
-		pcall(function()
-			Client.Fire("OpenCapsule", cType)
-		end)
+		pcall(function() Client.Fire("OpenCapsule", cType) end)
 		task.wait(capsuleConfig.returnWait)
-		local after = _getCurrencyAmount("Prism") or 0
 
 		char:PivotTo(minePos)
-
-		if capsuleConfig.pauseMining then
-			getgenv().AutoOpenBusy = false
-		end
-
-		if after < before then
-			setCapsuleStatus("Otwarto: " .. cType .. " (-" .. tostring(before - after) .. " Prism)")
-		else
-			setCapsuleStatus("Brak otwarcia. Zwiększ Zone Wait.")
-		end
-
+		if capsuleConfig.pauseMining then getgenv().AutoOpenBusy = false end
 		task.wait(capsuleConfig.cycleCooldown)
 	end
 	getgenv().AutoOpenBusy = false
 end
 
--- ============================ ORION UI TABS ============================
-local AutoTab = Window:MakeTab({ Name = "Automation", Icon = "rbxassetid://4483345998", PremiumOnly = false })
-local DropdownsTab = Window:MakeTab({ Name = "Selectors (Multi)", Icon = "rbxassetid://4483345998", PremiumOnly = false })
-local CapsuleTab = Window:MakeTab({ Name = "Capsules", Icon = "rbxassetid://4483345998", PremiumOnly = false })
-local MiscTab = Window:MakeTab({ Name = "Misc & Dev Boost", Icon = "rbxassetid://4483345998", PremiumOnly = false })
+-- ============================ ATLAS UI TABS ============================
+local AutoTab = Window:CreateTab("Automation")
+local SelectorsTab = Window:CreateTab("Selectors (Multi)")
+local CapsuleTab = Window:CreateTab("Capsules")
+local MiscTab = Window:CreateTab("Misc")
 
 -- ============================ AUTOMATION INTERFACES ============================
-AutoTab:AddToggle({
-	Name = "Gain Fire",
-	Default = false,
-	Callback = function(Value)
-		automationConfig.gainFire = Value
-		if Value then task.spawn(gainFire) end
-	end
-})
-AutoTab:AddSlider({
-	Name = "Gain Fire Cooldown",
-	Min = 0, Max = 5, Default = 0.5, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
-	Callback = function(Value) cooldowns.gainFire = Value end
-})
+local ValuesSection = AutoTab:CreateSection("Farm & Values")
 
-AutoTab:AddToggle({
-	Name = "Roll Rune",
-	Default = false,
-	Callback = function(Value)
-		automationConfig.rollRune = Value
-		if Value then task.spawn(rollRune) end
-	end
-})
-AutoTab:AddSlider({
-	Name = "Roll Rune Cooldown",
-	Min = 0, Max = 5, Default = 0.5, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
-	Callback = function(Value) cooldowns.rollRune = Value end
-})
+ValuesSection:CreateToggle("Gain Fire", false, function(Value)
+    automationConfig.gainFire = Value
+    if Value then task.spawn(gainFire) end
+end)
+ValuesSection:CreateSlider("Gain Fire Cooldown", 0, 5, 0.5, function(Value) cooldowns.gainFire = Value end)
 
-AutoTab:AddToggle({
-	Name = "Roll Tier",
-	Default = false,
-	Callback = function(Value)
-		automationConfig.rollTier = Value
-		if Value then task.spawn(rollTier) end
-	end
-})
-AutoTab:AddSlider({
-	Name = "Roll Tier Cooldown",
-	Min = 0, Max = 5, Default = 0.5, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
-	Callback = function(Value) cooldowns.rollTier = Value end
-})
+ValuesSection:CreateToggle("Roll Rune", false, function(Value)
+    automationConfig.rollRune = Value
+    if Value then task.spawn(rollRune) end
+end)
+ValuesSection:CreateSlider("Roll Rune Cooldown", 0, 5, 0.5, function(Value) cooldowns.rollRune = Value end)
 
-AutoTab:AddToggle({
-	Name = "Harvest Wheat",
-	Default = false,
-	Callback = function(Value)
-		automationConfig.harvestWheat = Value
-		if Value then task.spawn(harvestWheat) end
-	end
-})
-AutoTab:AddSlider({
-	Name = "Harvest Wheat Cooldown",
-	Min = 1, Max = 30, Default = 10, Color = Color3.fromRGB(255,255,255), Increment = 0.5,
-	Callback = function(Value) cooldowns.harvestWheat = Value end
-})
+ValuesSection:CreateToggle("Roll Tier", false, function(Value)
+    automationConfig.rollTier = Value
+    if Value then task.spawn(rollTier) end
+end)
+ValuesSection:CreateSlider("Roll Tier Cooldown", 0, 5, 0.5, function(Value) cooldowns.rollTier = Value end)
 
-AutoTab:AddToggle({
-	Name = "Deposit Wheat Auto",
-	Default = false,
-	Callback = function(Value)
-		automationConfig.autoWheatDeposet = Value
-		if Value then task.spawn(autoDepositWheat) end
-	end
-})
+ValuesSection:CreateToggle("Harvest Wheat", false, function(Value)
+    automationConfig.harvestWheat = Value
+    if Value then task.spawn(harvestWheat) end
+end)
+ValuesSection:CreateSlider("Harvest Wheat Cooldown", 1, 30, 10, function(Value) cooldowns.harvestWheat = Value end)
+ValuesSection:CreateToggle("Deposit Wheat Auto", false, function(Value)
+    automationConfig.autoWheatDeposet = Value
+    if Value then task.spawn(autoDepositWheat) end
+end)
 
-AutoTab:AddToggle({
-	Name = "Pump Water",
-	Default = false,
-	Callback = function(Value)
-		automationConfig.pumpWater = Value
-		if Value then task.spawn(pumpWater) end
-	end
-})
-AutoTab:AddSlider({
-	Name = "Pump Water Cooldown",
-	Min = 0, Max = 5, Default = 0.5, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
-	Callback = function(Value) cooldowns.pumpWater = Value end
-})
+ValuesSection:CreateToggle("Pump Water", false, function(Value)
+    automationConfig.pumpWater = Value
+    if Value then task.spawn(pumpWater) end
+end)
+ValuesSection:CreateSlider("Pump Water Cooldown", 0, 5, 0.5, function(Value) cooldowns.pumpWater = Value end)
 
-AutoTab:AddToggle({
-	Name = "Convert Water To Ice",
-	Default = false,
-	Callback = function(Value)
-		automationConfig.convertWaterToIce = Value
-		if Value then task.spawn(convertWaterToIce) end
-	end
-})
-AutoTab:AddSlider({
-	Name = "Convert Water to Ice Cooldown",
-	Min = 0, Max = 5, Default = 1, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
-	Callback = function(Value) cooldowns.convertWaterToIce = Value end
-})
+ValuesSection:CreateToggle("Convert Water To Ice", false, function(Value)
+    automationConfig.convertWaterToIce = Value
+    if Value then task.spawn(convertWaterToIce) end
+end)
+ValuesSection:CreateSlider("Water to Ice Cooldown", 0, 5, 1, function(Value) cooldowns.convertWaterToIce = Value end)
 
-AutoTab:AddToggle({
-	Name = "Hit Tree (Prestige 9+)",
-	Default = false,
-	Callback = function(Value)
-		automationConfig.hitTree = Value
-		if Value then task.spawn(hitTree) end
-	end
-})
-AutoTab:AddSlider({
-	Name = "Hit Tree Cooldown",
-	Min = 0, Max = 2, Default = 0.1, Color = Color3.fromRGB(255,255,255), Increment = 0.01,
-	Callback = function(Value) cooldowns.hitTree = Value end
-})
+ValuesSection:CreateToggle("Hit Tree (Prestige 9+)", false, function(Value)
+    automationConfig.hitTree = Value
+    if Value then task.spawn(hitTree) end
+end)
+ValuesSection:CreateSlider("Hit Tree Cooldown", 0, 2, 0.1, function(Value) cooldowns.hitTree = Value end)
+ValuesSection:CreateToggle("Deposit Wood Auto", false, function(Value)
+    automationConfig.autowWoodDeposet = Value
+    if Value then task.spawn(autoDepositWood) end
+end)
 
-AutoTab:AddToggle({
-	Name = "Deposit Wood Auto",
-	Default = false,
-	Callback = function(Value)
-		automationConfig.autowWoodDeposet = Value
-		if Value then task.spawn(autoDepositWood) end
-	end
-})
+ValuesSection:CreateToggle("Convert Wood To Ash", false, function(Value)
+    automationConfig.autoConvertWoodToAsh = Value
+    if Value then task.spawn(autoConvertWoodToAsh) end
+end)
+ValuesSection:CreateSlider("Wood to Ash Cooldown", 0, 5, 1, function(Value) cooldowns.autoConvertWoodToAsh = Value end)
 
-AutoTab:AddToggle({
-	Name = "Convert Wood To Ash",
-	Default = false,
-	Callback = function(Value)
-		automationConfig.autoConvertWoodToAsh = Value
-		if Value then task.spawn(autoConvertWoodToAsh) end
-	end
-})
-AutoTab:AddSlider({
-	Name = "Wood to Ash Cooldown",
-	Min = 0, Max = 5, Default = 1, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
-	Callback = function(Value) cooldowns.autoConvertWoodToAsh = Value end
-})
+ValuesSection:CreateToggle("Mine Ore", false, function(Value)
+    automationConfig.autoMineOres = Value
+    if Value then
+        local character = getCharacter()
+        if character and character:FindFirstChild("HumanoidRootPart") then 
+            positionSavedBeforeMine = character.HumanoidRootPart.CFrame 
+        end
+        task.spawn(autoMineOres)
+    end
+end)
+ValuesSection:CreateToggle("TP back to position before mining", false, function(Value) automationConfig.TpBackToBeforeMineOres = Value end)
 
-AutoTab:AddToggle({
-	Name = "Mine Ore",
-	Default = false,
-	Callback = function(Value)
-		automationConfig.autoMineOres = Value
-		if Value then
-			local character = getCharacter()
-			if character and character:FindFirstChild("HumanoidRootPart") then 
-				positionSavedBeforeMine = character.HumanoidRootPart.CFrame 
-			end
-			task.spawn(autoMineOres)
-		end
-	end
-})
+ValuesSection:CreateToggle("Exchange Gems", false, function(Value)
+    automationConfig.autoExchangeGems = Value
+    if Value then task.spawn(autoExchangeGems) end
+end)
+ValuesSection:CreateSlider("Exchange Gems Cooldown", 1, 60, 10, function(Value) cooldowns.autoExchangeGems = Value end)
 
-AutoTab:AddToggle({
-	Name = "TP back to position before mining",
-	Default = false,
-	Callback = function(Value) automationConfig.TpBackToBeforeMineOres = Value end
-})
+-- ============================ FIXED ATLAS MULTI-SELECT SYSTEM ============================
+local SelectSection = SelectorsTab:CreateSection("Multi Selection Lists")
 
-AutoTab:AddToggle({
-	Name = "Exchange Gems",
-	Default = false,
-	Callback = function(Value)
-		automationConfig.autoExchangeGems = Value
-		if Value then task.spawn(autoExchangeGems) end
-	end
-})
-AutoTab:AddSlider({
-	Name = "Exchange Gems Cooldown",
-	Min = 1, Max = 60, Default = 10, Color = Color3.fromRGB(255,255,255), Increment = 1,
-	Callback = function(Value) cooldowns.autoExchangeGems = Value end
-})
+-- ATLAS kütüphanesinde Multi-Select'i butonlu kontrol listesi (Checkbox List) mantığıyla hatasız çalışacak şekilde uyarladım:
+SelectSection:CreateParagraph("Rune Selection", "Aşağıdan basılmasını istediğiniz rünleri aktif edin.")
+local runeList = { "Basic", "Super", "Advanced", "Cosmic Prism", "Hacker", "Snowy", "Deepcore" }
+for _, rune in ipairs(runeList) do
+    SelectSection:CreateToggle("Roll " .. rune, false, function(State) runesToRoll[rune] = State end)
+end
 
--- ============================ FIXED SELECTORS (MULTI-DROPDOWNS) ============================
--- Orion Multi-Select bugunu aşmak için callback verisini güvenli döngüyle temizleyip çekiyoruz.
-DropdownsTab:AddDropdown({
-	Name = "Rune Roll Selection (Multi-Select)",
-	Default = {},
-	Options = { "Basic", "Super", "Advanced", "Cosmic Prism", "Hacker", "Snowy", "Deepcore" },
-	Multi = true,
-	Callback = function(SelectedList) 
-		table.clear(runesToRoll)
-		for k, v in pairs(SelectedList) do
-			runesToRoll[k] = v
-		end
-	end
-})
+SelectSection:CreateParagraph("Ice Button", "Dönüştürülecek tekil buz butonunu seçin.")
+SelectSection:CreateDropdown("Ice Button Selection", { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12" }, function(Value)
+    automationConfig.IceButtonToConvert = {Value}
+end)
 
-DropdownsTab:AddDropdown({
-	Name = "Ice Button Selection",
-	Default = "1",
-	Options = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12" },
-	Callback = function(Value) automationConfig.IceButtonToConvert = {Value} end
-})
+SelectSection:CreateParagraph("Ore Selection", "Kazılmasını istediğiniz madenleri aktif edin.")
+local oreList = { "Stone", "Coal", "Copper", "Iron", "Silver", "Gold", "Platinum", "Titanium", "Uranium", "Cobalt", "Palladium", "Ruby", "Aetherite", "Celestium", "Voidsteel", "Infinity" }
+for _, ore in ipairs(oreList) do
+    SelectSection:CreateToggle("Mine " .. ore, false, function(State) oresToMine[ore] = State end)
+end
 
-DropdownsTab:AddDropdown({
-	Name = "Ore to Mine Selection (Multi-Select)",
-	Default = {},
-	Options = { "Stone", "Coal", "Copper", "Iron", "Silver", "Gold", "Platinum", "Titanium", "Uranium", "Cobalt", "Palladium", "Ruby", "Aetherite", "Celestium", "Voidsteel", "Infinity" },
-	Multi = true,
-	Callback = function(SelectedList) 
-		table.clear(oresToMine)
-		for k, v in pairs(SelectedList) do
-			oresToMine[k] = v
-		end
-	end
-})
-
-DropdownsTab:AddDropdown({
-	Name = "Gems Exchange Selection (Multi-Select)",
-	Default = {},
-	Options = { "All", "Coal", "Iron", "Sliver", "Gold", "Platinum", "Titanium", "Emerald", "Diamond", "Opal", "Jade", "Amber", "Topaz", "Ruby", "Amethyst", "Quartz", "Sapphire", "Uranium", "Crystal", "Obsidian" },
-	Multi = true,
-	Callback = function(SelectedList) 
-		table.clear(gemsToExchange)
-		for k, v in pairs(SelectedList) do
-			gemsToExchange[k] = v
-		end
-	end
-})
+SelectSection:CreateParagraph("Gems Exchange Selection", "Takas edilecek mineral tiplerini aktif edin.")
+local gemList = { "All", "Coal", "Iron", "Sliver", "Gold", "Platinum", "Titanium", "Emerald", "Diamond", "Opal", "Jade", "Amber", "Topaz", "Ruby", "Amethyst", "Quartz", "Sapphire", "Uranium", "Crystal", "Obsidian" }
+for _, gem in ipairs(gemList) do
+    SelectSection:CreateToggle("Exchange " .. gem, false, function(State) gemsToExchange[gem] = State end)
+end
 
 -- ============================ CAPSULES INTERFACES ============================
-CapsuleTab:AddToggle({
-	Name = "Auto Open Capsule",
-	Default = false,
-	Callback = function(Value)
-		automationConfig.autoOpenCapsule = Value
-		if Value then task.spawn(autoOpenCapsule) end
-	end
-})
+local CapsuleSection = CapsuleTab:CreateSection("Auto Open Settings")
 
-CapsuleTab:AddDropdown({
-	Name = "Capsule Type",
-	Default = "Super",
-	Options = { "Classic", "Super" },
-	Callback = function(Value) capsuleConfig.capsuleType = Value or "Super" end
-})
-
-CapsuleTab:AddButton({
-	Name = "Capture Zone (Stand in Zone First)",
-	Callback = function()
-		local char = getCharacter()
-		if char and char:FindFirstChild("HumanoidRootPart") then
-			local pos = char:GetPivot().Position
-			capsuleZones[capsuleConfig.capsuleType] = pos
-			getgenv().NoobCapsuleZones = capsuleZones
-			setCapsuleStatus(string.format("Zone '%s' set to: %.1f, %.1f, %.1f", capsuleConfig.capsuleType, pos.X, pos.Y, pos.Z))
-		else
-			setCapsuleStatus("Error: Postać nie znaleziona!")
-		end
-	end
-})
-
-CapsuleTab:AddToggle({
-	Name = "Pause Mining During Open",
-	Default = true,
-	Callback = function(Value) capsuleConfig.pauseMining = Value end
-})
-
-CapsuleTab:AddToggle({
-	Name = "Check Prism Before Open",
-	Default = true,
-	Callback = function(Value) capsuleConfig.checkPrism = Value end
-})
-
-CapsuleTab:AddSlider({
-	Name = "Cycle Cooldown (s)",
-	Min = 3, Max = 10, Default = 3.1, Color = Color3.fromRGB(255,255,255), Increment = 0.1,
-	Callback = function(Value) capsuleConfig.cycleCooldown = Value end
-})
-
-CapsuleTab:AddSlider({
-	Name = "Zone Register Wait (s)",
-	Min = 0.1, Max = 1.5, Default = 0.4, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
-	Callback = function(Value) capsuleConfig.zoneWait = Value end
-})
-
-CapsuleTab:AddSlider({
-	Name = "Return Wait (s)",
-	Min = 0.1, Max = 1, Default = 0.2, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
-	Callback = function(Value) capsuleConfig.returnWait = Value end
-})
+CapsuleSection:CreateToggle("Auto Open Capsule", false, function(Value)
+    automationConfig.autoOpenCapsule = Value
+    if Value then task.spawn(autoOpenCapsule) end
+end)
+CapsuleSection:CreateDropdown("Capsule Type", { "Classic", "Super" }, function(Value) capsuleConfig.capsuleType = Value or "Super" end)
+CapsuleSection:CreateButton("Capture Zone (Stand in Zone First)", function()
+    local char = getCharacter()
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local pos = char:GetPivot().Position
+        capsuleZones[capsuleConfig.capsuleType] = pos
+        getgenv().NoobCapsuleZones = capsuleZones
+    end
+end)
+CapsuleSection:CreateToggle("Pause Mining During Open", true, function(Value) capsuleConfig.pauseMining = Value end)
+CapsuleSection:CreateToggle("Check Prism Before Open", true, function(Value) capsuleConfig.checkPrism = Value end)
+CapsuleSection:CreateSlider("Cycle Cooldown (s)", 3, 10, 3.1, function(Value) capsuleConfig.cycleCooldown = Value end)
+CapsuleSection:CreateSlider("Zone Register Wait (s)", 0.1, 1.5, 0.4, function(Value) capsuleConfig.zoneWait = Value end)
+CapsuleSection:CreateSlider("Return Wait (s)", 0.1, 1, 0.2, function(Value) capsuleConfig.returnWait = Value end)
 
 -- ============================ MISC INTERFACES ============================
-MiscTab:AddButton({
-	Name = "Enable Anti-AFK",
-	Callback = function()
-		miscConfigs.antiAfk = not miscConfigs.antiAfk
-		if connections.AntiAfk then connections.AntiAfk:Disconnect() connections.AntiAfk = nil end
-		if getgenv().AntiAfkGui then getgenv().AntiAfkGui:Destroy() getgenv().AntiAfkGui = nil end
-		if not miscConfigs.antiAfk then return end
+local MiscSection = MiscTab:CreateSection("Boost & Anti-AFK")
 
-		local gui = Instance.new("ScreenGui")
-		getgenv().AntiAfkGui = gui
-		local MainContainer = Instance.new("Frame")
-		local UICorner = Instance.new("UICorner")
-		local Title = Instance.new("TextLabel")
-		local Body = Instance.new("TextLabel")
-		local UiDragDetecter = Instance.new("UIDragDetector")
+MiscSection:CreateButton("Enable Anti-AFK", function()
+    miscConfigs.antiAfk = not miscConfigs.antiAfk
+    if connections.AntiAfk then connections.AntiAfk:Disconnect() connections.AntiAfk = nil end
+    if getgenv().AntiAfkGui then getgenv().AntiAfkGui:Destroy() getgenv().AntiAfkGui = nil end
+    if not miscConfigs.antiAfk then return end
 
-		gui.Name = "AntiAfk"
-		gui.Parent = game.CoreGui
-		MainContainer.Parent = gui
-		MainContainer.BackgroundColor3 = Color3.fromRGB(47, 47, 47)
-		MainContainer.Position = UDim2.new(0.3, 0, 0.15, 0)
-		MainContainer.Size = UDim2.new(0.3, 0, 0.07, 0)
-		UICorner.Parent = MainContainer
-		Title.Parent = MainContainer
-		Title.Text = "Sqays Hub Anti-AFK"
-		Title.Size = UDim2.new(1, 0, 0.4, 0)
-		Title.TextColor3 = Color3.fromRGB(255,255,255)
-		Title.TextScaled = true
-		Body.Parent = MainContainer
-		Body.Position = UDim2.new(0, 0, 0.4, 0)
-		Body.Size = UDim2.new(1, 0, 0.6, 0)
-		Body.Text = "AFK Saves: 0"
-		Body.TextColor3 = Color3.fromRGB(255,255,255)
-		Body.TextScaled = true
-		UiDragDetecter.Parent = MainContainer
+    local gui = Instance.new("ScreenGui")
+    getgenv().AntiAfkGui = gui
+    local MainContainer = Instance.new("Frame")
+    local UICorner = Instance.new("UICorner")
+    local Title = Instance.new("TextLabel")
+    local Body = Instance.new("TextLabel")
+    local UiDragDetecter = Instance.new("UIDragDetector")
 
-		local disconnectsPrevented = 0
-		connections.AntiAfk = localPlayer.Idled:Connect(function()
-			virtualUser:CaptureController()
-			virtualUser:ClickButton2(Vector2.new())
-			disconnectsPrevented = disconnectsPrevented + 1
-			Body.Text = "AFK Saves: " .. disconnectsPrevented
-		end)
-	end
-})
+    gui.Name = "AntiAfk"
+    gui.Parent = game.CoreGui
+    MainContainer.Parent = gui
+    MainContainer.BackgroundColor3 = Color3.fromRGB(47, 47, 47)
+    MainContainer.Position = UDim2.new(0.3, 0, 0.15, 0)
+    MainContainer.Size = UDim2.new(0.3, 0, 0.07, 0)
+    UICorner.Parent = MainContainer
+    Title.Parent = MainContainer
+    Title.Text = "Sqays Hub Anti-AFK"
+    Title.Size = UDim2.new(1, 0, 0.4, 0)
+    Title.TextColor3 = Color3.fromRGB(255,255,255)
+    Title.TextScaled = true
+    Body.Parent = MainContainer
+    Body.Position = UDim2.new(0, 0, 0.4, 0)
+    Body.Size = UDim2.new(1, 0, 0.6, 0)
+    Body.Text = "AFK Saves: 0"
+    Body.TextColor3 = Color3.fromRGB(255,255,255)
+    Body.TextScaled = true
+    UiDragDetecter.Parent = MainContainer
 
-MiscTab:AddButton({
-	Name = "Get Following Dev Boost",
-	Callback = function()
-		for _, v in followData:GetChildren() do
-			if v:IsA("BoolValue") then v.Value = true end
-		end
-		RE_Main:FireServer("CheckAllFollows")
-	end
-})
+    local disconnectsPrevented = 0
+    connections.AntiAfk = localPlayer.Idled:Connect(function()
+        virtualUser:CaptureController()
+        virtualUser:ClickButton2(Vector2.new())
+        disconnectsPrevented = disconnectsPrevented + 1
+        Body.Text = "AFK Saves: " .. disconnectsPrevented
+    end)
+end)
 
--- ============================ ORION INITIALIZE ============================
-OrionLib:Init()
+MiscSection:CreateButton("Get Following Dev Boost", function()
+    for _, v in followData:GetChildren() do
+        if v:IsA("BoolValue") then v.Value = true end
+    end
+    RE_Main:FireServer("CheckAllFollows")
+end)
