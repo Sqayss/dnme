@@ -1,8 +1,8 @@
 getgenv().VERSION = "1.1.0"
 
--- ============================ ORION LIBRARY INITIALIZATION (FIXED LINK) ============================
--- Eski kırık link güncel ve çalışan yedek link ile değiştirildi.
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/ionlyusegithubformodding/1/main/Mov产业')))()
+-- ============================ ORION LIBRARY INITIALIZATION (WORKING LINK) ============================
+-- Senin verdiğin güncel ve çalışan yedek link raw formatına dönüştürülerek entegre edildi.
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/GhostDuckyy/UI-Libraries/main/Orion/source.lua')))()
 
 local Window = OrionLib:MakeWindow({
     Name = "Sqays Hub | Noob Incremental", 
@@ -133,7 +133,7 @@ end
 function harvestWheat()
 	while automationConfig.harvestWheat do
 		local wheats = workspace.__GAME_CONTENT.Farm:GetChildren()
-		for _, wheat in ipairs(wheats) do
+		for _, wheat in ipairs(wheat) do
 			local cd = wheat:FindFirstChild("ClickDetector")
 			if cd then pcall(fireclickdetector, cd) end
 		end
