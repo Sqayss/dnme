@@ -1,19 +1,23 @@
-getgenv().VERSION = "1.5.0"
+getgenv().VERSION = "1.6.0"
 
--- ============================ SOLARIS UI LIBRARY INITIALIZATION ============================
-local SolarisLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/GhostDuckyy/UI-Libraries/main/SolarisLIB/source.lua"))()
+-- ============================ FLUENT UI LIBRARY INITIALIZATION ============================
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
--- Hata veren kısım buradaki metodun ismiydi, tamamen Solaris standartlarına göre düzeltildi.
-local Window = SolarisLib:New({
-    Name = "Sqays Hub | Noob Incremental",
-    FolderToSave = "SqaysHub_SolarisConfig"
+local Window = Fluent:CreateWindow({
+    Title = "Sqays Hub | Noob Incremental",
+    SubTitle = "v" .. getgenv().VERSION,
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true, -- Arka plan bulanıklığı
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl -- Menüyü gizleyip açma tuşu (Sol Ctrl)
 })
 
--- Tab'ları oluşturuyoruz
-local AutoTab = Window:Tab("Automation")
-local SelectorsTab = Window:Tab("Selectors (Multi)")
-local CapsuleTab = Window:Tab("Capsules")
-local MiscTab = Window:Tab("Misc")
+-- Fluent Tab'larını oluşturuyoruz (İkonlarıyla birlikte)
+local AutoTab = Window:AddTab({ Title = "Automation", Icon = "settings" })
+local SelectorsTab = Window:AddTab({ Title = "Selectors (Multi)", Icon = "list" })
+local CapsuleTab = Window:AddTab({ Title = "Capsules", Icon = "box" })
+local MiscTab = Window:AddTab({ Title = "Misc", Icon = "shield" })
 
 -- ============================ TOGGLE GUI BUTTON (Ekran Butonu) ============================
 if game.CoreGui:FindFirstChild("SqaysHubToggleGui") then
@@ -31,7 +35,7 @@ ToggleGui.ResetOnSpawn = false
 
 ToggleButton.Name = "ToggleButton"
 ToggleButton.Parent = ToggleGui
-ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 ToggleButton.Position = UDim2.new(0, 15, 0, 15)
 ToggleButton.Size = UDim2.new(0, 120, 0, 35)
 ToggleButton.Font = Enum.Font.SourceSansBold
@@ -44,17 +48,16 @@ ToggleButton.Draggable = true
 UICorner.CornerRadius = UDim.new(0, 6)
 UICorner.Parent = ToggleButton
 
-UIStroke.Color = Color3.fromRGB(255, 110, 0) -- Solaris kırmızı/turuncu temasına uygun şık renk
+UIStroke.Color = Color3.fromRGB(0, 120, 255) -- Fluent mavi temasına uygun kenarlık
 UIStroke.Thickness = 1.5
 UIStroke.Parent = ToggleButton
 
 local guiVisible = true
 ToggleButton.MouseButton1Click:Connect(function()
     guiVisible = not guiVisible
-    
-    local SolarisGui = game.CoreGui:FindFirstChild("Solaris") or game.CoreGui:FindFirstChild("SolarisUI")
-    if SolarisGui then
-        SolarisGui.Enabled = guiVisible
+    -- Fluent ana ekran korumasını bulup gizliyoruz
+    if game.CoreGui:FindFirstChild("Fluent") then
+        game.CoreGui.Fluent.Enabled = guiVisible
     end
     ToggleButton.Text = guiVisible and "Sqays Hub: GİZLE" or "Sqays Hub: GÖSTER"
 end)
@@ -77,7 +80,7 @@ local okClient, Client = pcall(function()
 	return require(ReplicatedStorage:WaitForChild("Framework"):WaitForChild("Client"))
 end)
 if not okClient then
-	warn("[Sqays Hub] Nie udało się pozyskać Framework.Client — auto-open kapsuł wyłączony.")
+	warn("[Sqays Hub] Framework Client alınamadı.")
 	Client = nil
 end
 
@@ -103,10 +106,6 @@ local automationConfig = {
 	IceButtonToConvert = {}, hitTree = false, autowWoodDeposet = false,
 	autoConvertWoodToAsh = false, autoMineOres = false, TpBackToBeforeMineOres = false,
 	autoExchangeGems = false, autoOpenCapsule = false,
-}
-
-local miscConfigs = {
-    antiAfk = false
 }
 
 local cooldowns = {
@@ -172,6 +171,7 @@ function harvestWheat()
 	end
 end
 
+-- Düzeltilen fonksiyon ismi
 function autoDepositWheat()
 	while automationConfig.autoWheatDeposet do
 		RE_Main:FireServer("DepositWheat")
@@ -313,66 +313,66 @@ function autoOpenCapsule()
 	getgenv().AutoOpenBusy = false
 end
 
--- ============================ SOLARIS AUTOMATION TAB INTERFACES ============================
-local MainSection = AutoTab:Section("Farms & Values")
-
-MainSection:Toggle("Gain Fire", false, "gainFire", function(Value)
+-- ============================ FLUENT AUTOMATION TAB INTERFACES ============================
+AutoTab:AddToggle("GainFireToggle", { Title = "Gain Fire", Default = false }):OnChanged(function(Value)
     automationConfig.gainFire = Value
     if Value then task.spawn(gainFire) end
 end)
-MainSection:Slider("Gain Fire Cooldown", 0, 5, 0.5, 0.1, "gainFireCd", function(Value) cooldowns.gainFire = Value end)
+AutoTab:AddSlider("GainFireSlider", { Title = "Gain Fire Cooldown", Min = 0, Max = 5, Default = 0.5, Increment = 0.1 }):OnChanged(function(Value) cooldowns.gainFire = Value end)
 
-MainSection:Toggle("Roll Rune", false, "rollRune", function(Value)
+AutoTab:AddToggle("RollRuneToggle", { Title = "Roll Rune", Default = false }):OnChanged(function(Value)
     automationConfig.rollRune = Value
     if Value then task.spawn(rollRune) end
 end)
-MainSection:Slider("Roll Rune Cooldown", 0, 5, 0.5, 0.1, "rollRuneCd", function(Value) cooldowns.rollRune = Value end)
+AutoTab:AddSlider("RollRuneSlider", { Title = "Roll Rune Cooldown", Min = 0, Max = 5, Default = 0.5, Increment = 0.1 }):OnChanged(function(Value) cooldowns.rollRune = Value end)
 
-MainSection:Toggle("Roll Tier", false, "rollTier", function(Value)
+AutoTab:AddToggle("RollTierToggle", { Title = "Roll Tier", Default = false }):OnChanged(function(Value)
     automationConfig.rollTier = Value
     if Value then task.spawn(rollTier) end
 end)
-MainSection:Slider("Roll Tier Cooldown", 0, 5, 0.5, 0.1, "rollTierCd", function(Value) cooldowns.rollTier = Value end)
+AutoTab:AddSlider("RollTierSlider", { Title = "Roll Tier Cooldown", Min = 0, Max = 5, Default = 0.5, Increment = 0.1 }):OnChanged(function(Value) cooldowns.rollTier = Value end)
 
-MainSection:Toggle("Harvest Wheat", false, "harvestWheat", function(Value)
+AutoTab:AddToggle("HarvestWheatToggle", { Title = "Harvest Wheat", Default = false }):OnChanged(function(Value)
     automationConfig.harvestWheat = Value
     if Value then task.spawn(harvestWheat) end
 end)
-MainSection:Slider("Harvest Wheat Cooldown", 1, 30, 10, 1, "harvestWheatCd", function(Value) cooldowns.harvestWheat = Value end)
-MainSection:Toggle("Deposit Wheat Auto", false, "depositWheatAuto", function(Value)
+AutoTab:AddSlider("HarvestWheatSlider", { Title = "Harvest Wheat Cooldown", Min = 1, Max = 30, Default = 10, Increment = 1 }):OnChanged(function(Value) cooldowns.harvestWheat = Value end)
+
+AutoTab:AddToggle("DepositWheatToggle", { Title = "Deposit Wheat Auto", Default = false }):OnChanged(function(Value)
     automationConfig.autoWheatDeposet = Value
     if Value then task.spawn(autoDepositWheat) end
 end)
 
-MainSection:Toggle("Pump Water", false, "pumpWater", function(Value)
+AutoTab:AddToggle("PumpWaterToggle", { Title = "Pump Water", Default = false }):OnChanged(function(Value)
     automationConfig.pumpWater = Value
     if Value then task.spawn(pumpWater) end
 end)
-MainSection:Slider("Pump Water Cooldown", 0, 5, 0.5, 0.1, "pumpWaterCd", function(Value) cooldowns.pumpWater = Value end)
+AutoTab:AddSlider("PumpWaterSlider", { Title = "Pump Water Cooldown", Min = 0, Max = 5, Default = 0.5, Increment = 0.1 }):OnChanged(function(Value) cooldowns.pumpWater = Value end)
 
-MainSection:Toggle("Convert Water To Ice", false, "convertWaterIce", function(Value)
+AutoTab:AddToggle("ConvertWaterIceToggle", { Title = "Convert Water To Ice", Default = false }):OnChanged(function(Value)
     automationConfig.convertWaterToIce = Value
     if Value then task.spawn(convertWaterToIce) end
 end)
-MainSection:Slider("Water to Ice Cooldown", 0, 5, 1, 0.1, "convertWaterIceCd", function(Value) cooldowns.convertWaterToIce = Value end)
+AutoTab:AddSlider("ConvertWaterIceSlider", { Title = "Water to Ice Cooldown", Min = 0, Max = 5, Default = 1, Increment = 0.1 }):OnChanged(function(Value) cooldowns.convertWaterToIce = Value end)
 
-MainSection:Toggle("Hit Tree (Prestige 9+)", false, "hitTree", function(Value)
+AutoTab:AddToggle("HitTreeToggle", { Title = "Hit Tree (Prestige 9+)", Default = false }):OnChanged(function(Value)
     automationConfig.hitTree = Value
     if Value then task.spawn(hitTree) end
 end)
-MainSection:Slider("Hit Tree Cooldown", 0, 2, 0.1, 0.01, "hitTreeCd", function(Value) cooldowns.hitTree = Value end)
-MainSection:Toggle("Deposit Wood Auto", false, "depositWoodAuto", function(Value)
+AutoTab:AddSlider("HitTreeSlider", { Title = "Hit Tree Cooldown", Min = 0, Max = 2, Default = 0.1, Increment = 0.01 }):OnChanged(function(Value) cooldowns.hitTree = Value end)
+
+AutoTab:AddToggle("DepositWoodToggle", { Title = "Deposit Wood Auto", Default = false }):OnChanged(function(Value)
     automationConfig.autowWoodDeposet = Value
     if Value then task.spawn(autoDepositWood) end
 end)
 
-MainSection:Toggle("Convert Wood To Ash", false, "convertWoodAsh", function(Value)
+AutoTab:AddToggle("ConvertWoodAshToggle", { Title = "Convert Wood To Ash", Default = false }):OnChanged(function(Value)
     automationConfig.autoConvertWoodToAsh = Value
     if Value then task.spawn(autoConvertWoodToAsh) end
 end)
-MainSection:Slider("Wood to Ash Cooldown", 0, 5, 1, 0.1, "convertWoodAshCd", function(Value) cooldowns.autoConvertWoodToAsh = Value end)
+AutoTab:AddSlider("ConvertWoodAshSlider", { Title = "Wood to Ash Cooldown", Min = 0, Max = 5, Default = 1, Increment = 0.1 }):OnChanged(function(Value) cooldowns.autoConvertWoodToAsh = Value end)
 
-MainSection:Toggle("Mine Ore", false, "mineOre", function(Value)
+AutoTab:AddToggle("MineOreToggle", { Title = "Mine Ore", Default = false }):OnChanged(function(Value)
     automationConfig.autoMineOres = Value
     if Value then
         local character = getCharacter()
@@ -382,109 +382,134 @@ MainSection:Toggle("Mine Ore", false, "mineOre", function(Value)
         task.spawn(autoMineOres)
     end
 end)
-MainSection:Toggle("TP back to position before mining", false, "tpBackMine", function(Value) automationConfig.TpBackToBeforeMineOres = Value end)
 
-MainSection:Toggle("Exchange Gems", false, "exchangeGems", function(Value)
+AutoTab:AddToggle("TpBackMineToggle", { Title = "TP back to position before mining", Default = false }):OnChanged(function(Value) 
+    automationConfig.TpBackToBeforeMineOres = Value 
+end)
+
+AutoTab:AddToggle("ExchangeGemsToggle", { Title = "Exchange Gems", Default = false }):OnChanged(function(Value)
     automationConfig.autoExchangeGems = Value
     if Value then task.spawn(autoExchangeGems) end
 end)
-MainSection:Slider("Exchange Gems Cooldown", 1, 60, 10, 1, "exchangeGemsCd", function(Value) cooldowns.autoExchangeGems = Value end)
+AutoTab:AddSlider("ExchangeGemsSlider", { Title = "Exchange Gems Cooldown", Min = 1, Max = 60, Default = 10, Increment = 1 }):OnChanged(function(Value) cooldowns.autoExchangeGems = Value end)
 
--- ============================ SOLARIS FIXED SELECTORS (MULTI-SELECT) ============================
-local RuneSec = SelectorsTab:Section("Rune List")
+
+-- ============================ FLUENT FIXED SELECTORS (MULTI-SELECT) ============================
+SelectorsTab:AddParagraph({ Title = "Rune List", Content = "İstediğiniz rünleri aktif edin." })
 local runeList = { "Basic", "Super", "Advanced", "Cosmic Prism", "Hacker", "Snowy", "Deepcore" }
 for _, rune in ipairs(runeList) do
-    RuneSec:Toggle(rune, false, "rune_"..rune, function(State) runesToRoll[rune] = State end)
+    SelectorsTab:AddToggle("Rune_" .. rune, { Title = rune, Default = false }):OnChanged(function(State) runesToRoll[rune] = State end)
 end
 
-local IceSec = SelectorsTab:Section("Ice Single Selection")
-IceSec:Dropdown("Ice Button Selection", { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12" }, "1", "iceButtonDrop", function(Value)
+SelectorsTab:AddParagraph({ Title = "Ice Single Selection", Content = "Dönüştürülecek tekil buz butonunu seçin." })
+SelectorsTab:AddDropdown("IceButtonDropdown", {
+    Title = "Ice Button Selection",
+    Values = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12" },
+    CurrentValue = "1"
+}):OnChanged(function(Value)
     automationConfig.IceButtonToConvert = {Value}
 end)
 
-local OreSec = SelectorsTab:Section("Ore List")
+SelectorsTab:AddParagraph({ Title = "Ore List", Content = "Kazılmasını istediğiniz madenleri aktif edin." })
 local oreList = { "Stone", "Coal", "Copper", "Iron", "Silver", "Gold", "Platinum", "Titanium", "Uranium", "Cobalt", "Palladium", "Ruby", "Aetherite", "Celestium", "Voidsteel", "Infinity" }
 for _, ore in ipairs(oreList) do
-    OreSec:Toggle(ore, false, "ore_"..ore, function(State) oresToMine[ore] = State end)
+    SelectorsTab:AddToggle("Ore_" .. ore, { Title = ore, Default = false }):OnChanged(function(State) oresToMine[ore] = State end)
 end
 
-local GemSec = SelectorsTab:Section("Gems Exchange List")
+SelectorsTab:AddParagraph({ Title = "Gems Exchange List", Content = "Takas edilecek mineral tiplerini aktif edin." })
 local gemList = { "All", "Coal", "Iron", "Sliver", "Gold", "Platinum", "Titanium", "Emerald", "Diamond", "Opal", "Jade", "Amber", "Topaz", "Ruby", "Amethyst", "Quartz", "Sapphire", "Uranium", "Crystal", "Obsidian" }
 for _, gem in ipairs(gemList) do
-    GemSec:Toggle(gem, false, "gem_"..gem, function(State) gemsToExchange[gem] = State end)
+    SelectorsTab:AddToggle("Gem_" .. gem, { Title = gem, Default = false }):OnChanged(function(State) gemsToExchange[gem] = State end)
 end
 
--- ============================ SOLARIS CAPSULES TAB ============================
-local CapSection = CapsuleTab:Section("Auto Open Capsule Settings")
 
-CapSection:Toggle("Auto Open Capsule", false, "autoOpenCapsule", function(Value)
+-- ============================ FLUENT CAPSULES TAB ============================
+CapsuleTab:AddToggle("AutoOpenCapsuleToggle", { Title = "Auto Open Capsule", Default = false }):OnChanged(function(Value)
     automationConfig.autoOpenCapsule = Value
     if Value then task.spawn(autoOpenCapsule) end
 end)
-CapSection:Dropdown("Capsule Type", { "Classic", "Super" }, "Super", "capsuleTypeDrop", function(Value) capsuleConfig.capsuleType = Value or "Super" end)
-CapSection:Button("Capture Zone (Stand in Zone First)", function()
-    local char = getCharacter()
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        local pos = char:GetPivot().Position
-        capsuleZones[capsuleConfig.capsuleType] = pos
-        getgenv().NoobCapsuleZones = capsuleZones
+
+CapsuleTab:AddDropdown("CapsuleTypeDropdown", {
+    Title = "Capsule Type",
+    Values = { "Classic", "Super" },
+    CurrentValue = "Super"
+}):OnChanged(function(Value) capsuleConfig.capsuleType = Value or "Super" end)
+
+CapsuleTab:AddButton({
+    Title = "Capture Zone (Stand in Zone First)",
+    Callback = function()
+        local char = getCharacter()
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local pos = char:GetPivot().Position
+            capsuleZones[capsuleConfig.capsuleType] = pos
+            getgenv().NoobCapsuleZones = capsuleZones
+        end
     end
-end)
-CapSection:Toggle("Pause Mining During Open", true, "pauseMiningCap", function(Value) capsuleConfig.pauseMining = Value end)
-CapSection:Toggle("Check Prism Before Open", true, "checkPrismCap", function(Value) capsuleConfig.checkPrism = Value end)
-CapSection:Slider("Cycle Cooldown (s)", 3, 10, 3.1, 0.1, "cycleCooldownCap", function(Value) capsuleConfig.cycleCooldown = Value end)
-CapSection:Slider("Zone Register Wait (s)", 0.1, 1.5, 0.4, 0.05, "zoneWaitCap", function(Value) capsuleConfig.zoneWait = Value end)
-CapSection:Slider("Return Wait (s)", 0.1, 1, 0.2, 0.05, "returnWaitCap", function(Value) capsuleConfig.returnWait = Value end)
+})
 
--- ============================ SOLARIS MISC TAB ============================
-local MiscSection = MiscTab:Section("Anti-AFK & Dev Booster")
+CapsuleTab:AddToggle("PauseMiningCapToggle", { Title = "Pause Mining During Open", Default = true }):OnChanged(function(Value) capsuleConfig.pauseMining = Value end)
+CapsuleTab:AddToggle("CheckPrismCapToggle", { Title = "Check Prism Before Open", Default = true }):OnChanged(function(Value) capsuleConfig.checkPrism = Value end)
+CapsuleTab:AddSlider("CycleCooldownCapSlider", { Title = "Cycle Cooldown (s)", Min = 3, Max = 10, Default = 3.1, Increment = 0.1 }):OnChanged(function(Value) capsuleConfig.cycleCooldown = Value end)
+CapsuleTab:AddSlider("ZoneWaitCapSlider", { Title = "Zone Register Wait (s)", Min = 0.1, Max = 1.5, Default = 0.4, Increment = 0.05 }):OnChanged(function(Value) capsuleConfig.zoneWait = Value end)
+CapsuleTab:AddSlider("ReturnWaitCapSlider", { Title = "Return Wait (s)", Min = 0.1, Max = 1, Default = 0.2, Increment = 0.05 }):OnChanged(function(Value) capsuleConfig.returnWait = Value end)
 
-MiscSection:Button("Enable Anti-AFK", function()
-    miscConfigs.antiAfk = not miscConfigs.antiAfk
-    if connections.AntiAfk then connections.AntiAfk:Disconnect() connections.AntiAfk = nil end
-    if getgenv().AntiAfkGui then getgenv().AntiAfkGui:Destroy() getgenv().AntiAfkGui = nil end
-    if not miscConfigs.antiAfk then return end
 
-    local gui = Instance.new("ScreenGui")
-    getgenv().AntiAfkGui = gui
-    local MainContainer = Instance.new("Frame")
-    local UICorner = Instance.new("UICorner")
-    local Title = Instance.new("TextLabel")
-    local Body = Instance.new("TextLabel")
-    local UiDragDetecter = Instance.new("UIDragDetector")
+-- ============================ FLUENT MISC TAB ============================
+MiscTab:AddButton({
+    Title = "Enable Anti-AFK",
+    Callback = function()
+        miscConfigs.antiAfk = not miscConfigs.antiAfk
+        if connections.AntiAfk then connections.AntiAfk:Disconnect() connections.AntiAfk = nil end
+        if getgenv().AntiAfkGui then getgenv().AntiAfkGui:Destroy() getgenv().AntiAfkGui = nil end
+        if not miscConfigs.antiAfk then return end
 
-    gui.Name = "AntiAfk"
-    gui.Parent = game.CoreGui
-    MainContainer.Parent = gui
-    MainContainer.BackgroundColor3 = Color3.fromRGB(47, 47, 47)
-    MainContainer.Position = UDim2.new(0.3, 0, 0.15, 0)
-    MainContainer.Size = UDim2.new(0.3, 0, 0.07, 0)
-    UICorner.Parent = MainContainer
-    Title.Parent = MainContainer
-    Title.Text = "Sqays Hub Anti-AFK"
-    Title.Size = UDim2.new(1, 0, 0.4, 0)
-    Title.TextColor3 = Color3.fromRGB(255,255,255)
-    Title.TextScaled = true
-    Body.Parent = MainContainer
-    Body.Position = UDim2.new(0, 0, 0.4, 0)
-    Body.Size = UDim2.new(1, 0, 0.6, 0)
-    Body.Text = "AFK Saves: 0"
-    Body.TextColor3 = Color3.fromRGB(255,255,255)
-    Body.TextScaled = true
-    UiDragDetecter.Parent = MainContainer
+        local gui = Instance.new("ScreenGui")
+        getgenv().AntiAfkGui = gui
+        local MainContainer = Instance.new("Frame")
+        local UICorner = Instance.new("UICorner")
+        local Title = Instance.new("TextLabel")
+        local Body = Instance.new("TextLabel")
+        local UiDragDetecter = Instance.new("UIDragDetector")
 
-    local disconnectsPrevented = 0
-    connections.AntiAfk = localPlayer.Idled:Connect(function()
-        virtualUser:CaptureController()
-        virtualUser:ClickButton2(Vector2.new())
-        disconnectsPrevented = disconnectsPrevented + 1
-        Body.Text = "AFK Saves: " .. disconnectsPrevented
-    end)
-end)
+        gui.Name = "AntiAfk"
+        gui.Parent = game.CoreGui
+        MainContainer.Parent = gui
+        MainContainer.BackgroundColor3 = Color3.fromRGB(47, 47, 47)
+        MainContainer.Position = UDim2.new(0.3, 0, 0.15, 0)
+        MainContainer.Size = UDim2.new(0.3, 0, 0.07, 0)
+        UICorner.Parent = MainContainer
+        Title.Parent = MainContainer
+        Title.Text = "Sqays Hub Anti-AFK"
+        Title.Size = UDim2.new(1, 0, 0.4, 0)
+        Title.TextColor3 = Color3.fromRGB(255,255,255)
+        Title.TextScaled = true
+        Body.Parent = MainContainer
+        Body.Position = UDim2.new(0, 0, 0.4, 0)
+        Body.Size = UDim2.new(1, 0, 0.6, 0)
+        Body.Text = "AFK Saves: 0"
+        Body.TextColor3 = Color3.fromRGB(255,255,255)
+        Body.TextScaled = true
+        UiDragDetecter.Parent = MainContainer
 
-MiscSection:Button("Get Following Dev Boost", function()
-    for _, v in followData:GetChildren() do
-        if v:IsA("BoolValue") then v.Value = true end
+        local disconnectsPrevented = 0
+        connections.AntiAfk = localPlayer.Idled:Connect(function()
+            virtualUser:CaptureController()
+            virtualUser:ClickButton2(Vector2.new())
+            disconnectsPrevented = disconnectsPrevented + 1
+            Body.Text = "AFK Saves: " .. disconnectsPrevented
+        end)
     end
-    RE_Main:FireServer("CheckAllFollows")
-end)
+})
+
+MiscTab:AddButton({
+    Title = "Get Following Dev Boost",
+    Callback = function()
+        for _, v in followData:GetChildren() do
+            if v:IsA("BoolValue") then v.Value = true end
+        end
+        RE_Main:FireServer("CheckAllFollows")
+    end
+})
+
+-- Fluent UI pencerelerini ilk kez açıyoruz
+Window:SelectTab(1)
