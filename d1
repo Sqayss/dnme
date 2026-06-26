@@ -1,0 +1,636 @@
+getgenv().VERSION = "1.1.0"
+
+-- ============================ ORION LIBRARY INITIALIZATION ============================
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+
+local Window = OrionLib:MakeWindow({
+    Name = "Sqays Hub | Noob Incremental", 
+    HidePremium = false, 
+    SaveConfig = true, 
+    ConfigFolder = "SqaysHub_NoobIncremental"
+})
+
+-- ============================ GAME SERVICES & VARIABLES ============================
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local virtualUser = game:GetService("VirtualUser")
+
+local localPlayer = Players.LocalPlayer
+local followData = localPlayer.EXTRA.FOLLOWS
+local currentPrestige = localPlayer.FEATURES.PrestigeAmount
+local currencies = localPlayer.CURRENCIES
+local RE_Main = ReplicatedStorage.__Net.MainRemote
+local positionSavedBeforeMine = nil
+local connections = {}
+
+-- [CAPSULE] Framework Client
+local okClient, Client = pcall(function()
+	return require(ReplicatedStorage:WaitForChild("Framework"):WaitForChild("Client"))
+end)
+if not okClient then
+	warn("[Sqays Hub] Nie udało się pozyskać Framework.Client — auto-open kapsuł wyłączony.")
+	Client = nil
+end
+
+local ICE_BUTTON_COSTS = {
+	["1"] = 250, ["2"] = 3750, ["3"] = 62500, ["4"] = 375000, ["5"] = 750000,
+	["6"] = 23750000, ["7"] = 500000000, ["8"] = 21250000000, ["9"] = 2.5e17,
+	["10"] = 6.25e21, ["11"] = 1.25e26, ["12"] = 1.875e30,
+}
+
+local CAPSULE_COSTS = {
+	Classic = 1000000000,
+	Super = 7500000000,
+}
+
+local capsuleZones = getgenv().NoobCapsuleZones or {
+	Super = Vector3.new(618.0, 9.7, 3173.5),
+	Classic = nil,
+}
+getgenv().NoobCapsuleZones = capsuleZones
+
+-- ============================ CONFIGURATIONS ============================
+local capsuleConfig = {
+	capsuleType = "Super",
+	pauseMining = true,
+	checkPrism = true,
+	cycleCooldown = 3.1,
+	zoneWait = 0.4,
+	returnWait = 0.2,
+}
+
+local automationConfig = {
+	gainFire = false, rollRune = false, rollTier = false, harvestWheat = false,
+	autoWheatDeposet = false, pumpWater = false, convertWaterToIce = false,
+	IceButtonToConvert = {}, hitTree = false, autowWoodDeposet = false,
+	autoConvertWoodToAsh = false, autoMineOres = false, TpBackToBeforeMineOres = false,
+	autoExchangeGems = false, autoOpenCapsule = false,
+}
+
+local cooldowns = {
+	gainFire = 0.5, rollRune = 0.5, rollTier = 0.5, harvestWheat = 10,
+	pumpWater = 0.5, convertWaterToIce = 1, hitTree = 0.1, autowWoodDeposet = 1,
+	autoConvertWoodToAsh = 1, autoExchangeGems = 10,
+}
+
+local miscConfigs = { antiAfk = false }
+local runesToRoll = {}
+local oresToMine = {}
+local gemsToExchange = {}
+
+-- ============================ HELPER FUNCTIONS ============================
+local function _getCurrencyAmount(currency: string): number?
+	local folder = currencies:FindFirstChild(currency)
+	if not folder then return nil end
+	local amountFolder = folder:FindFirstChild("Amount")
+	if not amountFolder then return nil end
+	local v = amountFolder:FindFirstChild("1")
+	if not v then return nil end
+	return tonumber(v.Value)
+end
+
+local function getCharacter()
+	return localPlayer.Character
+end
+
+local function setCapsuleStatus(text)
+	print("[Sqays Hub - Capsule] " .. text)
+    OrionLib:MakeNotification({
+        Name = "Capsule Status Update",
+        Content = text,
+        Image = "rbxassetid://4483345998",
+        Time = 3
+    })
+end
+
+-- ============================ AUTOMATION FUNCTIONS ============================
+function gainFire()
+	while automationConfig.gainFire do
+		RE_Main:FireServer("GainFire")
+		task.wait(cooldowns.gainFire)
+	end
+end
+
+function rollRune()
+	while automationConfig.rollRune do
+		if #runesToRoll > 0 then
+			for _, rune in ipairs(runesToRoll) do
+				RE_Main:FireServer("RollRune", rune)
+			end
+		end
+		task.wait(cooldowns.rollRune)
+	end
+end
+
+function rollTier()
+	while automationConfig.rollTier do
+		RE_Main:FireServer("RollTier")
+		task.wait(cooldowns.rollTier)
+	end
+end
+
+function harvestWheat()
+	while automationConfig.harvestWheat do
+		local wheats = workspace.__GAME_CONTENT.Farm:GetChildren()
+		for _, wheat in ipairs(wheats) do
+			local cd = wheat:FindFirstChild("ClickDetector")
+			if cd then pcall(fireclickdetector, cd) end
+		end
+		task.wait(cooldowns.harvestWheat)
+	end
+end
+
+function autoDepositWheat()
+	while automationConfig.autoWheatDeposet do
+		RE_Main:FireServer("DepositWheat")
+		local cd = tonumber(localPlayer.FEATURES.BREAD_CONVERTER._cooldown.Value) or 1
+		task.wait(cd)
+	end
+end
+
+function pumpWater()
+	while automationConfig.pumpWater do
+		RE_Main:FireServer("GainWater")
+		task.wait(cooldowns.pumpWater)
+	end
+end
+
+function convertWaterToIce()
+	while automationConfig.convertWaterToIce do
+		local selectedButton = automationConfig.IceButtonToConvert[1] or automationConfig.IceButtonToConvert
+		if selectedButton then
+			local cost = ICE_BUTTON_COSTS[tostring(selectedButton)]
+			local water = _getCurrencyAmount("Water")
+			local buttonNumber = tonumber(selectedButton)
+			if water and cost and buttonNumber and water >= cost then
+				RE_Main:FireServer("PressButton", buttonNumber)
+			end
+		end
+		task.wait(cooldowns.convertWaterToIce)
+	end
+end
+
+function hitTree()
+	local isTreeSpawned = localPlayer.FEATURES.TREE.IsSpawned
+	while automationConfig.hitTree do
+		if tonumber(currentPrestige.Value) < 9 then
+			warn("[Sqays Hub] Prestige level too low — disabling Tree Farm.")
+			break
+		end
+		if isTreeSpawned.Value then
+			RE_Main:FireServer("HitTree")
+		end
+		task.wait(cooldowns.hitTree)
+	end
+end
+
+function autoDepositWood()
+	while automationConfig.autowWoodDeposet do
+		RE_Main:FireServer("DepositWood")
+		local cd = tonumber(localPlayer.FEATURES.WOOD_CONVERTER._cooldown.Value) or 1
+		task.wait(cd)
+	end
+end
+
+function autoConvertWoodToAsh()
+	while automationConfig.autoConvertWoodToAsh do
+		RE_Main:FireServer("ConvertWoodToAsh")
+		task.wait(cooldowns.autoConvertWoodToAsh)
+	end
+end
+
+function autoMineOres()
+	local oresFolder = workspace.__GAME_CONTENT.Ores
+	while automationConfig.autoMineOres do
+		if getgenv().AutoOpenBusy then
+			task.wait(0.05)
+			continue
+		end
+		local character = getCharacter()
+		if not character then
+			task.wait(1)
+			continue
+		end
+		local mined = false
+		for _, ore in ipairs(oresFolder:GetChildren()) do
+			if not table.find(oresToMine, ore.Name) then continue end
+			local function getOreHealthText()
+				local ui = ore:FindFirstChild("OresTopUI")
+				local bar = ui and ui:FindFirstChild("Bar")
+				local lbl = bar and bar:FindFirstChild("Health")
+				return lbl and lbl.Text
+			end
+			if getOreHealthText() == "Respawning..." then continue end
+			character:PivotTo(ore:GetPivot() * CFrame.new(0, 1, 0))
+			mined = true
+			repeat
+				task.wait(0.05)
+			until getOreHealthText() == "Respawning..." or not automationConfig.autoMineOres or getgenv().AutoOpenBusy
+			if not automationConfig.autoMineOres or getgenv().AutoOpenBusy then break end
+		end
+		if not mined then task.wait(0.5) end
+	end
+	if automationConfig.TpBackToBeforeMineOres and positionSavedBeforeMine then
+		local character = getCharacter()
+		if character then character:PivotTo(positionSavedBeforeMine) end
+	end
+end
+
+function autoExchangeGems()
+	while automationConfig.autoExchangeGems do
+		if #gemsToExchange > 0 then
+			for _, gem in ipairs(gemsToExchange) do
+				if gem == "All" then
+					RE_Main:FireServer("ExchangeAllMinerals")
+					break
+				end
+				if _getCurrencyAmount(gem) and _getCurrencyAmount(gem) > 0 then
+					RE_Main:FireServer("ExchangeMineral", gem)
+				end
+			end
+		end
+		task.wait(cooldowns.autoExchangeGems)
+	end
+end
+
+function autoOpenCapsule()
+	while automationConfig.autoOpenCapsule do
+		local cType = capsuleConfig.capsuleType
+		local cost = CAPSULE_COSTS[cType] or math.huge
+		local zone = capsuleZones[cType]
+		local char = getCharacter()
+
+		if not Client then
+			setCapsuleStatus("Brak Framework.Client — Nie można otworzyć.")
+			task.wait(2)
+			continue
+		end
+		if not (char and char:FindFirstChild("HumanoidRootPart")) then
+			task.wait(0.5)
+			continue
+		end
+		if not zone then
+			setCapsuleStatus("Strefa nieustawiona! Użyj Capture Zone.")
+			task.wait(2)
+			continue
+		end
+
+		local prism = _getCurrencyAmount("Prism") or 0
+		if capsuleConfig.checkPrism and prism < cost then
+			task.wait(1)
+			continue
+		end
+
+		if capsuleConfig.pauseMining then
+			getgenv().AutoOpenBusy = true
+			task.wait(0.1)
+		end
+
+		local minePos = char:GetPivot()
+		char:PivotTo(CFrame.new(zone))
+		task.wait(capsuleConfig.zoneWait)
+
+		local before = _getCurrencyAmount("Prism") or 0
+		pcall(function()
+			Client.Fire("OpenCapsule", cType)
+		end)
+		task.wait(capsuleConfig.returnWait)
+		local after = _getCurrencyAmount("Prism") or 0
+
+		char:PivotTo(minePos)
+
+		if capsuleConfig.pauseMining then
+			getgenv().AutoOpenBusy = false
+		end
+
+		if after < before then
+			setCapsuleStatus("Otwarto: " .. cType .. " (-" .. tostring(before - after) .. " Prism)")
+		else
+			setCapsuleStatus("Brak otwarcia. Zwiększ Zone Wait.")
+		end
+
+		task.wait(capsuleConfig.cycleCooldown)
+	end
+	getgenv().AutoOpenBusy = false
+end
+
+-- ============================ ORION UI TABS ============================
+local AutoTab = Window:MakeTab({ Name = "Automation", Icon = "rbxassetid://4483345998", PremiumOnly = false })
+local DropdownsTab = Window:MakeTab({ Name = "Selectors", Icon = "rbxassetid://4483345998", PremiumOnly = false })
+local CapsuleTab = Window:MakeTab({ Name = "Capsules", Icon = "rbxassetid://4483345998", PremiumOnly = false })
+local MiscTab = Window:MakeTab({ Name = "Misc & Dev Boost", Icon = "rbxassetid://4483345998", PremiumOnly = false })
+
+-- ============================ AUTOMATION INTERFACES ============================
+AutoTab:AddToggle({
+	Name = "Gain Fire",
+	Default = false,
+	Callback = function(Value)
+		automationConfig.gainFire = Value
+		if Value then task.spawn(gainFire) end
+	end
+})
+AutoTab:AddSlider({
+	Name = "Gain Fire Cooldown",
+	Min = 0, Max = 5, Default = 0.5, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
+	Callback = function(Value) cooldowns.gainFire = Value end
+})
+
+AutoTab:AddToggle({
+	Name = "Roll Rune",
+	Default = false,
+	Callback = function(Value)
+		automationConfig.rollRune = Value
+		if Value then task.spawn(rollRune) end
+	end
+})
+AutoTab:AddSlider({
+	Name = "Roll Rune Cooldown",
+	Min = 0, Max = 5, Default = 0.5, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
+	Callback = function(Value) cooldowns.rollRune = Value end
+})
+
+AutoTab:AddToggle({
+	Name = "Roll Tier",
+	Default = false,
+	Callback = function(Value)
+		automationConfig.rollTier = Value
+		if Value then task.spawn(rollTier) end
+	end
+})
+AutoTab:AddSlider({
+	Name = "Roll Tier Cooldown",
+	Min = 0, Max = 5, Default = 0.5, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
+	Callback = function(Value) cooldowns.rollTier = Value end
+})
+
+AutoTab:AddToggle({
+	Name = "Harvest Wheat",
+	Default = false,
+	Callback = function(Value)
+		automationConfig.harvestWheat = Value
+		if Value then task.spawn(harvestWheat) end
+	end
+})
+AutoTab:AddSlider({
+	Name = "Harvest Wheat Cooldown",
+	Min = 1, Max = 30, Default = 10, Color = Color3.fromRGB(255,255,255), Increment = 0.5,
+	Callback = function(Value) cooldowns.harvestWheat = Value end
+})
+
+AutoTab:AddToggle({
+	Name = "Deposit Wheat Auto",
+	Default = false,
+	Callback = function(Value)
+		automationConfig.autoWheatDeposet = Value
+		if Value then task.spawn(autoDepositWheat) end
+	end
+})
+
+AutoTab:AddToggle({
+	Name = "Pump Water",
+	Default = false,
+	Callback = function(Value)
+		automationConfig.pumpWater = Value
+		if Value then task.spawn(pumpWater) end
+	end
+})
+AutoTab:AddSlider({
+	Name = "Pump Water Cooldown",
+	Min = 0, Max = 5, Default = 0.5, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
+	Callback = function(Value) cooldowns.pumpWater = Value end
+})
+
+AutoTab:AddToggle({
+	Name = "Convert Water To Ice",
+	Default = false,
+	Callback = function(Value)
+		automationConfig.convertWaterToIce = Value
+		if Value then task.spawn(convertWaterToIce) end
+	end
+})
+AutoTab:AddSlider({
+	Name = "Convert Water to Ice Cooldown",
+	Min = 0, Max = 5, Default = 1, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
+	Callback = function(Value) cooldowns.convertWaterToIce = Value end
+})
+
+AutoTab:AddToggle({
+	Name = "Hit Tree (Prestige 9+)",
+	Default = false,
+	Callback = function(Value)
+		automationConfig.hitTree = Value
+		if Value then task.spawn(hitTree) end
+	end
+})
+AutoTab:AddSlider({
+	Name = "Hit Tree Cooldown",
+	Min = 0, Max = 2, Default = 0.1, Color = Color3.fromRGB(255,255,255), Increment = 0.01,
+	Callback = function(Value) cooldowns.hitTree = Value end
+})
+
+AutoTab:AddToggle({
+	Name = "Deposit Wood Auto",
+	Default = false,
+	Callback = function(Value)
+		automationConfig.autowWoodDeposet = Value
+		if Value then task.spawn(autoDepositWood) end
+	end
+})
+
+AutoTab:AddToggle({
+	Name = "Convert Wood To Ash",
+	Default = false,
+	Callback = function(Value)
+		automationConfig.autoConvertWoodToAsh = Value
+		if Value then task.spawn(autoConvertWoodToAsh) end
+	end
+})
+AutoTab:AddSlider({
+	Name = "Wood to Ash Cooldown",
+	Min = 0, Max = 5, Default = 1, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
+	Callback = function(Value) cooldowns.autoConvertWoodToAsh = Value end
+})
+
+AutoTab:AddToggle({
+	Name = "Mine Ore",
+	Default = false,
+	Callback = function(Value)
+		automationConfig.autoMineOres = Value
+		if Value then
+			local character = getCharacter()
+			if character then positionSavedBeforeMine = character:GetPivot() end
+			task.spawn(autoMineOres)
+		end
+	end
+})
+
+AutoTab:AddToggle({
+	Name = "TP back to position before mining",
+	Default = false,
+	Callback = function(Value) automationConfig.TpBackToBeforeMineOres = Value end
+})
+
+AutoTab:AddToggle({
+	Name = "Exchange Gems",
+	Default = false,
+	Callback = function(Value)
+		automationConfig.autoExchangeGems = Value
+		if Value then task.spawn(autoExchangeGems) end
+	end
+})
+AutoTab:AddSlider({
+	Name = "Exchange Gems Cooldown",
+	Min = 1, Max = 60, Default = 10, Color = Color3.fromRGB(255,255,255), Increment = 1,
+	Callback = function(Value) cooldowns.autoExchangeGems = Value end
+})
+
+-- ============================ SELECTORS / DROPDOWNS INTERFACES ============================
+DropdownsTab:AddDropdown({
+	Name = "Rune Roll Selection",
+	Default = "None",
+	Options = { "Basic", "Super", "Advanced", "Cosmic Prism", "Hacker", "Snowy", "Deepcore" },
+	Callback = function(Value) runesToRoll = {Value} end -- Orion Single/Multi Selection Uyumlaması
+})
+
+DropdownsTab:AddDropdown({
+	Name = "Ice Button Selection",
+	Default = "1",
+	Options = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12" },
+	Callback = function(Value) automationConfig.IceButtonToConvert = {Value} end
+})
+
+DropdownsTab:AddDropdown({
+	Name = "Ore to Mine Selection",
+	Default = "Stone",
+	Options = { "Stone", "Coal", "Copper", "Iron", "Silver", "Gold", "Platinum", "Titanium", "Uranium", "Cobalt", "Palladium", "Ruby", "Aetherite", "Celestium", "Voidsteel", "Infinity" },
+	Callback = function(Value) oresToMine = {Value} end
+})
+
+DropdownsTab:AddDropdown({
+	Name = "Gems Exchange Selection",
+	Default = "All",
+	Options = { "All", "Coal", "Iron", "Sliver", "Gold", "Platinum", "Titanium", "Emerald", "Diamond", "Opal", "Jade", "Amber", "Topaz", "Ruby", "Amethyst", "Quartz", "Sapphire", "Uranium", "Crystal", "Obsidian" },
+	Callback = function(Value) gemsToExchange = {Value} end
+})
+
+-- ============================ CAPSULES INTERFACES ============================
+CapsuleTab:AddToggle({
+	Name = "Auto Open Capsule",
+	Default = false,
+	Callback = function(Value)
+		automationConfig.autoOpenCapsule = Value
+		if Value then task.spawn(autoOpenCapsule) end
+	end
+})
+
+CapsuleTab:AddDropdown({
+	Name = "Capsule Type",
+	Default = "Super",
+	Options = { "Classic", "Super" },
+	Callback = function(Value) capsuleConfig.capsuleType = Value or "Super" end
+})
+
+CapsuleTab:AddButton({
+	Name = "Capture Zone (Stand in Zone First)",
+	Callback = function()
+		local char = getCharacter()
+		if char and char:FindFirstChild("HumanoidRootPart") then
+			local pos = char:GetPivot().Position
+			capsuleZones[capsuleConfig.capsuleType] = pos
+			getgenv().NoobCapsuleZones = capsuleZones
+			setCapsuleStatus(string.format("Zone '%s' set to: %.1f, %.1f, %.1f", capsuleConfig.capsuleType, pos.X, pos.Y, pos.Z))
+		else
+			setCapsuleStatus("Error: Postać nie znaleziona!")
+		end
+	end
+})
+
+CapsuleTab:AddToggle({
+	Name = "Pause Mining During Open",
+	Default = true,
+	Callback = function(Value) capsuleConfig.pauseMining = Value end
+})
+
+CapsuleTab:AddToggle({
+	Name = "Check Prism Before Open",
+	Default = true,
+	Callback = function(Value) capsuleConfig.checkPrism = Value end
+})
+
+CapsuleTab:AddSlider({
+	Name = "Cycle Cooldown (s)",
+	Min = 3, Max = 10, Default = 3.1, Color = Color3.fromRGB(255,255,255), Increment = 0.1,
+	Callback = function(Value) capsuleConfig.cycleCooldown = Value end
+})
+
+CapsuleTab:AddSlider({
+	Name = "Zone Register Wait (s)",
+	Min = 0.1, Max = 1.5, Default = 0.4, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
+	Callback = function(Value) capsuleConfig.zoneWait = Value end
+})
+
+CapsuleTab:AddSlider({
+	Name = "Return Wait (s)",
+	Min = 0.1, Max = 1, Default = 0.2, Color = Color3.fromRGB(255,255,255), Increment = 0.05,
+	Callback = function(Value) capsuleConfig.returnWait = Value end
+})
+
+-- ============================ MISC INTERFACES ============================
+MiscTab:AddButton({
+	Name = "Enable Anti-AFK",
+	Callback = function()
+		miscConfigs.antiAfk = not miscConfigs.antiAfk
+		if connections.AntiAfk then connections.AntiAfk:Disconnect() connections.AntiAfk = nil end
+		if getgenv().AntiAfkGui then getgenv().AntiAfkGui:Destroy() getgenv().AntiAfkGui = nil end
+		if not miscConfigs.antiAfk then return end
+
+		local gui = Instance.new("ScreenGui")
+		getgenv().AntiAfkGui = gui
+		local MainContainer = Instance.new("Frame")
+		local UICorner = Instance.new("UICorner")
+		local Title = Instance.new("TextLabel")
+		local Body = Instance.new("TextLabel")
+		local UiDragDetecter = Instance.new("UIDragDetector")
+
+		gui.Name = "AntiAfk"
+		gui.Parent = game.CoreGui
+		MainContainer.Parent = gui
+		MainContainer.BackgroundColor3 = Color3.fromRGB(47, 47, 47)
+		MainContainer.Position = UDim2.new(0.3, 0, 0.15, 0)
+		MainContainer.Size = UDim2.new(0.3, 0, 0.07, 0)
+		UICorner.Parent = MainContainer
+		Title.Parent = MainContainer
+		Title.Text = "Sqays Hub Anti-AFK"
+		Title.Size = UDim2.new(1, 0, 0.4, 0)
+		Title.TextColor3 = Color3.fromRGB(255,255,255)
+		Title.TextScaled = true
+		Body.Parent = MainContainer
+		Body.Position = UDim2.new(0, 0, 0.4, 0)
+		Body.Size = UDim2.new(1, 0, 0.6, 0)
+		Body.Text = "AFK Saves: 0"
+		Body.TextColor3 = Color3.fromRGB(255,255,255)
+		Body.TextScaled = true
+		UiDragDetecter.Parent = MainContainer
+
+		local disconnectsPrevented = 0
+		connections.AntiAfk = localPlayer.Idled:Connect(function()
+			virtualUser:CaptureController()
+			virtualUser:ClickButton2(Vector2.new())
+			disconnectsPrevented = disconnectsPrevented + 1
+			Body.Text = "AFK Saves: " .. disconnectsPrevented
+		end)
+	end
+})
+
+MiscTab:AddButton({
+	Name = "Get Following Dev Boost",
+	Callback = function()
+		for _, v in followData:GetChildren() do
+			if v:IsA("BoolValue") then v.Value = true end
+		end
+		RE_Main:FireServer("CheckAllFollows")
+	end
+})
+
+-- ============================ ORION INITIALIZE ============================
+OrionLib:Init()
