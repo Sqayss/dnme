@@ -1,7 +1,8 @@
 getgenv().VERSION = "1.1.0"
 
--- ============================ ORION LIBRARY INITIALIZATION ============================
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+-- ============================ ORION LIBRARY INITIALIZATION (FIXED LINK) ============================
+-- Eski kırık link güncel ve çalışan yedek link ile değiştirildi.
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/ionlyusegithubformodding/1/main/Mov产业')))()
 
 local Window = OrionLib:MakeWindow({
     Name = "Sqays Hub | Noob Incremental", 
@@ -489,7 +490,7 @@ DropdownsTab:AddDropdown({
 	Name = "Rune Roll Selection",
 	Default = "None",
 	Options = { "Basic", "Super", "Advanced", "Cosmic Prism", "Hacker", "Snowy", "Deepcore" },
-	Callback = function(Value) runesToRoll = {Value} end -- Orion Single/Multi Selection Uyumlaması
+	Callback = function(Value) runesToRoll = {Value} end
 })
 
 DropdownsTab:AddDropdown({
